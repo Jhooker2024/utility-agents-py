@@ -1,6 +1,14 @@
 """Every instruction a model reads, apart from the playbooks. `CONCERN_RULES` defines each
 concern with examples; the department agents and the chief of staff read the same text."""
 
+
+def evidence(text: str) -> str:
+    """Text from outside, in message tags, with `<` and `>` escaped so it cannot close them."""
+    escaped = text.replace("<", "&lt;").replace(">", "&gt;")
+
+    return f"<message>\n{escaped}\n</message>"
+
+
 CONCERN_RULES = """\
 concerns: your judgment of who must hear about this message today. Each concern holds the \
 request for a person and tells the team that handles it. Name one when, reading the whole \

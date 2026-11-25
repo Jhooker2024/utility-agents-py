@@ -133,6 +133,11 @@ def department(playbook: str) -> str:
     return PLAYBOOKS[playbook].department
 
 
+def request_playbook(department: str) -> str:
+    """The playbook a department works a request with."""
+    return next(name for name, entry in PLAYBOOKS.items() if entry.department == department)
+
+
 def json_schema(playbook: str) -> dict:
     """The `file_proposal` input schema for a playbook, playbook fields first."""
     entry = PLAYBOOKS[playbook]

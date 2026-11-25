@@ -63,8 +63,7 @@ def _load(name: str) -> list[dict]:
 
 
 _BY_ID = {
-    collection: {record["id"]: record for record in _load(collection)}
-    for collection in COLLECTIONS
+    collection: {record["id"]: record for record in _load(collection)} for collection in COLLECTIONS
 }
 _LABELS = _load("labels")
 
@@ -138,7 +137,11 @@ def customer_by_email(email: object) -> dict | None:
     address = email.strip().lower()
 
     return next(
-        (customer for customer in _BY_ID["customers"].values() if customer["email"].lower() == address),
+        (
+            customer
+            for customer in _BY_ID["customers"].values()
+            if customer["email"].lower() == address
+        ),
         None,
     )
 
@@ -152,7 +155,9 @@ def labels() -> list[dict]:
 
 
 def _with_assets(customer: dict) -> Match:
-    assets = [asset for asset in _BY_ID["assets"].values() if asset["customer_id"] == customer["id"]]
+    assets = [
+        asset for asset in _BY_ID["assets"].values() if asset["customer_id"] == customer["id"]
+    ]
 
     return Match(customer, assets)
 

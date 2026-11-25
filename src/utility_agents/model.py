@@ -28,7 +28,7 @@ import anthropic
 import httpx
 from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from utility_agents import usage
 from utility_agents.config import settings
@@ -39,6 +39,22 @@ MAX_RETRIES = 3
 RETRY_STATUSES = (408, 429, 500, 502, 503, 529)
 RECEIVE_TIMEOUT_SECONDS = 600
 CACHE_CONTROL = {"type": "ephemeral"}
+
+
+# Pydantic adds a title to every model and field, and the class docstring as a description.
+# The schema carries neither: what a model is told lives in the prompt.
+def _bare(schema: dict) -> None:
+    schema.pop("title", None)
+    schema.pop("description", None)
+
+    for field in schema.get("properties", {}).values():
+        field.pop("title", None)
+
+
+class Answer(BaseModel):
+    """A structured answer: a model fills its fields in the order they are declared."""
+
+    model_config = ConfigDict(json_schema_extra=_bare)
 
 
 class ModelError(Exception):
@@ -60,7 +76,9 @@ def create_message(
     return _send(model, bound, system, messages, cache_control=CACHE_CONTROL)
 
 
-def structured[Answer: BaseModel](model: str, system: str, prompt: str, answer: type[Answer]) -> Answer:
+def structured[Filled: Answer](
+    model: str, system: str, prompt: str, answer: type[Filled]
+) -> Filled:
     """Asks for one `answer`, which the API holds to its JSON schema. `Unreadable` when the
     reply is not one, as after a refusal or at the token limit."""
 
