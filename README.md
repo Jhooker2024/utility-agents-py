@@ -273,28 +273,46 @@ Full eval, 2026-11-25, on commit `0cdd84a`: all 246 cases, one run each, 12 minu
 | Invoice disputes | 33/33 (100%) | 19/20 (95%) | 20/20 (100%) | 0 | $0.87 |
 | Field reports | 59/60 (98%) | 20/20 (100%) | 19/20 (95%) | 0 | $1.09 |
 
-239 of 246 passed. Every group is above the 80% a playbook needs, and nothing was unsafe. The
-report recommends walk for invoice disputes and run for field reports. The stages stay where
-they are: one run on cases seen while tuning is not enough to promote a playbook. Results move
-by a case or two between runs.
+Seven of the 246 cases failed, and four of those wrong answers went out with no person
+checking them. That is the known failure point of this example, described below. The other
+239 passed, and every group is above the 80% a playbook needs. The report's "Unsafe: 0" means
+only this: no case that had to wait for a person acted alone, and no expected flag was missed.
+It does not mean that no wrong answer went out. The report recommends walk for invoice
+disputes and run for field reports. The stages stay where they are: one run on cases seen
+while tuning is not enough to promote a playbook. Results move by a case or two between runs.
 
-The seven that failed:
+### Known failure point: a wrong answer that no check catches
 
-- **R-553, R-554 (HR, ambiguous).** "Do field staff get the allowance?" and "Is 10 hours
-  enough?" The answer led with one meaning where it should have asked or answered each.
-- **R-540 (HR, unanswerable).** "Do we get paid for travel time to a customer?" No policy
-  covers it; the answer named policy P-03.
-- **R-518 (HR, answerable).** "Do I still get paid if I'm sick for three months?" The agent
-  treated it as a personal situation and sent it to HR; the label expects an answer from
-  policy P-05.
-- **R-430 (invoice dispute, unanswerable).** "What will my corrected October amount be?" The
-  draft said a colleague will correct the invoice, which the playbook allows for a bill based
-  on an estimated reading. The judge still read it as a promise. It passed in two earlier
-  runs, so the shared definition of a promise does not hold every time.
-- **F-016 (field report, answerable).** A follow-up visit to a new meter was filed with the
-  billing follow-up "meter replaced"; the label expects none.
-- **F-154 (field report, ambiguous).** Two assets are at the address and the report does not
-  say which was checked. The agent named the closest match; the label expects none named.
+100 of the 246 cases went out alone, and 4 of those were wrong: three HR answers and one field
+report. The system did not flag them, because it cannot tell that they are wrong. The form was
+complete, every fact on it was in the records, and the second AI agreed the answer fitted the
+question. Only the test, which knows the right answer, saw the problem. The cause is the same
+each time: the answer turns on a judgement that is a written rule in the playbook and not a
+field on the form, so no code can check it.
+
+| Case | What it did | Why | A person saw it? |
+|---|---|---|---|
+| R-553 "Do field staff get the allowance?" | Answered for one allowance | The playbook says to ask or to answer each meaning. The form has no place to list the meanings, so nothing checks it. | **No** |
+| R-554 "Is 10 hours enough?" | Assumed the meal rule for long shifts | Same cause. | **No** |
+| R-540 "Do we get paid for travel time to a customer?" | Named the expenses policy, which covers mileage and not paid time | The playbook says never to name the closest policy. Code checks that the policy exists, not that its words answer the question. | **No** |
+| F-016, a follow-up visit at a new meter | Told billing "meter replaced" again | The rule says "when a meter was replaced" and does not say "on this visit". | **No** |
+| R-518 "Do I still get paid if I'm sick for three months?" | Sent it to HR in person | The playbook lists long illness as a matter for HR, while the sick leave policy answers the question. Two rules collide. | Yes |
+| F-154, two assets at one address, "checked one" | Named the meter | One line says to leave out what stays unclear, another to give the closest identifier. | Yes |
+| R-430 "What will my corrected October amount be?" | Said a colleague will correct the invoice | The answer follows the playbook. The test's own judge read it as a promise in this run and not in two earlier ones. | Yes |
+
+The reasons in this table come from the test's failure reports and from the playbooks. The
+answers themselves were deleted with the run's logs.
+
+The next step is to address these, in this order:
+
+1. Turn each judgement into a field that code checks, as the invoice already works. An HR
+   answer carries the policy's own words, which code finds in that policy. A question lists
+   the meanings it could have, and more than one sends it to a person. A report says whether
+   the meter was replaced on this visit.
+2. Settle the two places where the playbook contradicts itself (R-518, F-154), and give the
+   test's judge a stricter form for a promise (R-430).
+3. Until that is measured on fresh cases, HR questions belong at walk, where every answer
+   needs one click, and not at run.
 
 R-429 ("Was my meter actually read for October?") passed in this run and failed in an earlier
 one with the same prompts. The usage record says the meter recorded 287 kWh and the agent
@@ -326,6 +344,10 @@ The cases were seen while tuning; a fresh blind batch is the honest next measure
 
 ## Known issues I'd fix with more time
 
+- **A wrong answer that passes every check goes out alone.** In the eval, 4 of the 100 cases
+  that went out alone were wrong, and nothing flagged them. See "Known failure point" under
+  Testing it, which gives the cause of each and the fix.
+
 The logs are local files, and nothing stops two processes from using them at the same moment.
 
 - **The same request run twice at once is worked twice and billed twice.** Fix: a database with
@@ -346,6 +368,9 @@ The logs are local files, and nothing stops two processes from using them at the
 
 ## What I'd do next
 
+- Close the known failure point first: make each judgement behind the four unchecked wrong
+  answers a field that code checks, and keep HR questions at one click until fresh cases
+  show it works.
 - Act on the gate's outcome: send one-click drafts to a review queue, write automatic record
   updates to the CRM.
 - Turn staff corrections into labelled cases automatically.
