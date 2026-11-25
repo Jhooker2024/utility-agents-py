@@ -10,6 +10,80 @@ agents: field operations (field reports to CRM), billing (invoice disputes) and 
 questions). 246 labelled cases test them. The shared core is the expensive part; each extra
 agent is a playbook, a Pydantic model and an entry in the playbook table.
 
+## How it works, in plain words
+
+**Who.** Three kinds of people write to the utility: a customer with a question about a bill, a
+technician reporting a site visit, and an employee with a question for HR. Three AI assistants
+do the first round of work, one each for billing, field operations and HR. Each assistant can
+read only the records of its own department. Staff stay in charge: they approve, correct or
+reject what an assistant proposes.
+
+**What.** For every message an assistant prepares a proposal: a reply to the customer, an
+answer to the employee, or an update for the customer system after a visit. It does not write
+loose text for a program to pick apart. It fills in a fixed form: which customer, which invoice
+or meter, what was found, what is promised and anything that worries it. The system then
+decides what may happen to the proposal and records that decision. This example stops there:
+it sends nothing and changes no customer record.
+
+**When a person steps in.** Each kind of work has a level of trust, which people set. The deck
+calls the levels crawl, walk and run.
+
+- Bill disputes: a person handles every one. They are about money, so they never go out alone.
+- Field reports: a routine update for the customer system goes ahead alone. Anything else
+  waits for a person.
+- HR questions: an answer from the written policy goes out alone.
+
+At every level a proposal waits for a person when a check fails, when the assistant asks for
+one, when a customer's message comes from someone who is not on record, or when the message
+raises a concern: a safety risk, a power outage, a vulnerable person, possible tampering, a
+legal threat, money promised, a personal matter for HR, or instructions aimed at the AI. The
+team that handles the concern is told at once. A proposal needs one click of approval when it
+promises money or a date, when the assistant could not confirm something, when it passed
+between departments, or after 50 automatic actions in a day. When staff reject something that
+went ahead alone, that kind of work drops back one level for 30 days. One switch stops every AI
+call at once.
+
+**Where.** It runs on a laptop, in a terminal window with a menu. The customers, meters,
+invoices and policies are made up for this example. The assistants are Claude models, reached
+through Anthropic's service. Every step, every decision, every staff review and every message
+to a team is written to a log file, together with what it cost.
+
+**Why.** The deck names three problems at the client: programs that pull data out of loose
+text by matching patterns, a home-built way of choosing AI models, and no tests or record of
+what the AI did. This example shows the alternative. The assistant fills in a form, so nothing
+is guessed from its wording. Ordinary program code, not AI, checks every fact on the form
+against the records. Each assistant uses one AI model, set in one place, and a test run can
+compare models on the same cases. Every step is recorded, so anyone can see why a decision was
+made. And 246 example messages with known answers measure how often the assistants get it
+right.
+
+**How a message travels.**
+
+1. A message comes in from the billing portal, the technicians' app or the HR portal, or as
+   loose text such as an email.
+2. The front door sends it to the right department. Messages from the three known places go
+   straight there. For loose text an AI decides one thing only: is this for billing? If it is
+   not, or the AI is unsure, a person gets it.
+3. The department's assistant reads its playbook, the written instructions for that kind of
+   work. It looks up the records, may ask another department one question, and fills in the
+   form.
+4. Three checks run. Is the form complete? Is every fact on it true: the customer, meter and
+   invoice exist, each reading and date is in the report as quoted, each amount comes from a
+   record, and the invoice belongs to the customer who asks? Does a second AI, which has not
+   seen the playbook, agree that the proposal fits the message?
+5. The gate decides: go ahead alone, wait for one click, or wait for a person. It gives every
+   reason.
+6. The decision is recorded and the teams that need to know are told. Staff can then approve,
+   edit or reject it, and that choice is recorded too.
+
+Three messages from a live run on 2026-11-25, typed the way people type:
+
+| Message | What the system did |
+|---|---|
+| An employee: "how many vacation days do i get if i only work 3 days a week" | Answered from the annual leave policy: 15 days, with a note to check the rounding with HR. Went out without a person. |
+| A customer: "ello, i think i was doubled invoice for the october ..." | Found the customer by name and drafted a reply: one invoice for October, 268 kWh, €85.76, the same as the meter recorded. Waits for a person, as every bill dispute does. |
+| A technician: "veldweg 17 raalte. seal on the meter is broken and theres a wire going round it ..." | Filed suspected tampering for the right customer and meter. Waits for a person, and told revenue protection, the duty desk and billing. |
+
 ## Running it
 
 You need Python 3.12 or later, [uv](https://docs.astral.sh/uv/) and an Anthropic API key. Put
@@ -127,7 +201,7 @@ The deck runs on AWS Bedrock; this example calls the Anthropic API directly.
 - **One model per role in config.** Departments run on Sonnet; the front door and the judges on
   Haiku.
 
-## How it works
+## How it works in the code
 
 ```
 request ─► chief_of_staff ─► department ─► (transfer?) ─► verifier ─► gate ─► trace + decisions
