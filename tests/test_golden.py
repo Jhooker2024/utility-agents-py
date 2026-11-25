@@ -1,7 +1,7 @@
 """What the system sends to the API and shows to people, compared with a recording.
 
-`golden/golden.json` was recorded by the Elixir version. `WRITE_GOLDEN=1` records it again, only
-after a change meant to alter what is sent.
+`WRITE_GOLDEN=1` records `golden/golden.json` again, only after a change meant to alter what is
+sent.
 """
 
 import json
@@ -33,7 +33,6 @@ MESSAGE = (
     "Kerkstraat 4, C-1002, meter A-2002. Loose neutral tightened. Reading 9,876 kWh, 19-11-2026."
 )
 REFUSED = (400, {"error": "golden"})
-REFUSED_BODY_IN_ELIXIR = '%{"error" => "golden"}'
 UNREADABLE = (200, text("no json"))
 REPORT = Proposal(
     request_id="G-1",
@@ -55,9 +54,6 @@ REPORT = Proposal(
         readings=[],
     ),
 )
-# Requests whose structured-output schema holds an enum. The Anthropic SDK inside LangChain
-# drops "type" next to "enum" there, so the recording is compared in that form.
-ENUM_IN_OUTPUT_SCHEMA = ("request: chief of staff",)
 
 
 def test_what_the_system_sends_and_shows_matches_the_recorded_golden_file(replay):
@@ -70,9 +66,7 @@ def test_what_the_system_sends_and_shows_matches_the_recorded_golden_file(replay
     assert sorted(actual) == sorted(recorded)
 
     for name, value in recorded.items():
-        if name in ENUM_IN_OUTPUT_SCHEMA:
-            value = canonical(value)
-        elif name.startswith("request: "):
+        if name.startswith("request: "):
             assert canonical(value) == value, f"{name}: the canonical form changes the recording"
 
         assert actual[name] == value, f"{name} differs from the golden file"
@@ -92,7 +86,7 @@ def requests(replay) -> dict:
     for name, call in (("sense", sense), ("eval judge", grade), ("chief of staff", route)):
         for response, outcome in ((REFUSED, "failed"), (UNREADABLE, "unreadable")):
             request, answered = exchange(replay, response, call)
-            sent[f"{outcome}: {name}"] = in_elixir(answered)
+            sent[f"{outcome}: {name}"] = shown(answered)
 
             if outcome == "failed":
                 sent[f"request: {name}"] = request
@@ -122,22 +116,15 @@ def canonical(body: str) -> str:
     return json.dumps(ordered(json.loads(body)), separators=(",", ":"), ensure_ascii=False)
 
 
-def ordered(value: object, key: str | None = None, output_schema: bool = False) -> object:
+def ordered(value: object, key: str | None = None) -> object:
     if isinstance(value, dict) and key == "properties":
-        return {name: ordered(item, None, output_schema) for name, item in value.items()}
+        return {name: ordered(item) for name, item in value.items()}
 
     if isinstance(value, dict):
-        output_schema = output_schema or key == "output_config"
-        dropped = ("type",) if output_schema and "enum" in value else ()
-
-        return {
-            name: ordered(item, name, output_schema)
-            for name, item in sorted(value.items())
-            if name not in dropped
-        }
+        return {name: ordered(item, name) for name, item in sorted(value.items())}
 
     if isinstance(value, list):
-        return [ordered(item, None, output_schema) for item in value]
+        return [ordered(item) for item in value]
 
     if isinstance(value, str):
         return embedded(value)
@@ -158,19 +145,13 @@ def embedded(text: str) -> str:
     return before + opening + canonical(proposal) + closing + after
 
 
-def in_elixir(answered: object) -> str:
-    """A result as Elixir prints it, because the recording was made by the Elixir version. An
-    API error body is printed there as an Elixir map."""
+def shown(answered: object) -> object:
+    """A result as the recording holds it: a check's failure text, or for the front door the
+    reason a person gets the request and the concerns it raised."""
     if isinstance(answered, chief_of_staff.Person):
-        return f"{{:person, {quoted(answered.reason)}, {answered.concerns}}}"
+        return {"reason": answered.reason, "concerns": answered.concerns}
 
-    return f"{{:fail, {quoted(answered)}}}"
-
-
-def quoted(text: str) -> str:
-    return json.dumps(
-        text.replace(json.dumps(REFUSED[1]), REFUSED_BODY_IN_ELIXIR), ensure_ascii=False
-    )
+    return answered
 
 
 def work(playbook: str):

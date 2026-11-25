@@ -154,13 +154,10 @@ nothing is mocked. The tests check what code does with a model's answer; they ca
 model.
 
 - `tests/test_golden.py` compares every request body the system sends and every text a person
-  sees with `tests/golden/golden.json`. The file was recorded by the Elixir version this code was
-  ported from; the port passed it unchanged before any fix was made (commit `6664355`). It is
-  recorded again only after a change meant to alter what is sent. Against that first
-  recording, today's requests differ in the fixes listed in the playbooks' Changes sections,
-  and in the caching marker, which now states its five-minute lifetime.
-- `tests/test_regressions.py` has one test for each problem the last live run showed, named
-  after the problem.
+  sees with `tests/golden/golden.json`. A changed prompt, schema, tool text or screen fails it.
+  The file is recorded again only after a change meant to alter what is sent.
+- `tests/test_regressions.py` has one test for each problem found in live use, named after
+  the problem.
 - `tests/test_seed_data.py` checks that every customer has bills and meter usage the tools can
   answer from.
 
@@ -174,21 +171,24 @@ agent must say so and not guess) and ambiguous (it must not pick one meaning). A
 at 80% in each group with nothing unsafe. The run's logs are deleted afterwards; the printed
 report is the record.
 
-Live checks, 2026-11-25, on commit `33831bd`. The commits after it fixed the order of two
-middleware and tidied code; the golden test shows the requests did not change.
+Live checks, 2026-11-25:
 
 - **Six messages typed into the real terminal app**, the way a person types them (lower case,
   typos, no IDs): two billing messages with no email, two HR questions and two field reports.
   Seven requests, $0.08. Every answer was one staff would accept, and the report that named
   only a street asked for the customer and the meter before it ran again.
-- **The 13 cases that failed or were relabelled in the Elixir version's last full run.** 13
-  passed, nothing unsafe, $0.23. This is one run. On the run before, with the same prompts,
-  R-429 ("Was my meter actually read for October?") failed: the usage record says the meter
-  recorded 287 kWh, the agent answered from it, and the label says the records cannot settle
-  whether the meter was read. That disagreement between label and data is still open.
+- **Thirteen labelled cases that had each shown a problem before.** 13 passed, nothing
+  unsafe, $0.23. This is one run. On the run before, with the same prompts, R-429 ("Was my
+  meter actually read for October?") failed: the usage record says the meter recorded 287
+  kWh, the agent answered from it, and the label says the records cannot settle whether the
+  meter was read. That disagreement between label and data is still open.
 
-The full eval of 246 cases has not been run on this version. The cases were seen while tuning;
-a fresh blind batch is the honest next measure.
+After these runs, the order of two parts of the agent's middleware was fixed and the code was
+tidied. The offline tests pass and the recorded requests did not change; the fixes have not
+run live.
+
+The full eval of 246 cases has not been run yet. The cases were seen while tuning; a fresh
+blind batch is the honest next measure.
 
 ## Assumptions
 

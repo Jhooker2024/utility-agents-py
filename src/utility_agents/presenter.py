@@ -395,8 +395,8 @@ def _lines(text: str, width: int) -> list[str]:
     return [line for paragraph in text.split("\n") for line in _wrapped(paragraph, width)]
 
 
-# Words fill a line until the next would reach the width, counted in bytes as the Elixir
-# version did, so a line with "€" or "✓" breaks at the same word.
+# Words fill a line until the next would reach the width. Length is counted in bytes, so a
+# line with "€" or "✓" breaks a little early and never runs over.
 def _wrapped(paragraph: str, width: int) -> list[str]:
     lines, line = [], ""
 

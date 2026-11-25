@@ -1,5 +1,5 @@
-"""One test for each problem found in the live eval of 2026-11-25 and in live use that day,
-named after the problem. The request IDs are the cases that showed it.
+"""One test for each problem found in live use, named after the problem. The request IDs are
+the labelled cases that showed it.
 """
 
 from datetime import date

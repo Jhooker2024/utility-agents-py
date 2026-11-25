@@ -35,7 +35,7 @@ VALID = {
 PREFIX = "The proposal is invalid: "
 
 
-def test_the_file_proposal_schema_for_every_playbook_lists_exactly_the_ecto_fields():
+def test_the_file_proposal_schema_for_every_playbook_lists_exactly_the_model_fields():
     for playbook, model in [
         ("invoice_dispute", InvoiceDispute),
         ("field_report", FieldReport),
