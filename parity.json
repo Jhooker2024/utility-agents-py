@@ -110,11 +110,11 @@
     },
     "six typed messages against the live API": {
       "passes": true,
-      "check": "2026-11-25, `uv run utility-agents` driven in a pseudo-terminal, 7 requests, $0.0974; every screen read: each answer is one staff would accept, and the street-only field report asked for the customer and the meter NOTE: ran on the hand-written loop (commit f4c3daa), not yet repeated on the create_agent build"
+      "check": "2026-11-25, `uv run utility-agents` driven in a pseudo-terminal on the create_agent build (commit 33831bd), 7 requests, $0.0766; every screen read. First run on the hand-written loop: $0.0974, same outcomes"
     },
     "full live eval": {
       "passes": false,
-      "check": "needs Justin's approval"
+      "check": "not run: Justin said not now on 2026-11-25"
     },
     "demo with five requests, replayed model": {
       "passes": true,
@@ -123,6 +123,10 @@
     "terminal app on the create_agent build, field report flow, replayed model": {
       "passes": true,
       "check": "scratchpad drive.py offline field_offline.json"
+    },
+    "13 earlier-failing cases against the live API": {
+      "passes": true,
+      "check": "2026-11-25 on the create_agent build: 13/13, 0 unsafe, $0.2340. First run on the hand-written loop: 12/13 (R-429 failed), $0.1804. One run each"
     }
   },
   "known_problems": {

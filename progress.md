@@ -81,8 +81,10 @@ repository. Update this file at every milestone.
 ## Open
 
 - Done-criterion 5 (full eval at 80% in every group, 0 unsafe) is not measured on this version.
-- The six typed messages and the 13 cases ran live before the move to `create_agent`. They
-  have not been repeated on the rebuilt agent. Ask before running them (about $0.10 and $0.18).
+- Both live checks were repeated on the `create_agent` build on 2026-11-25: the six typed
+  messages (7 requests, $0.0766, all accepted) and the 13 cases (13/13, 0 unsafe, $0.2340).
+  R-429 passed this time and failed the time before with the same prompts: run-to-run
+  variation, not a fix.
 - The agent can still read another customer's invoice with its read tools. The fact check
   stops it from naming that invoice in the proposal's fields, but no code reads the draft's
   prose. Scoping reads to the asking customer at the tool layer would close it.

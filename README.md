@@ -174,18 +174,17 @@ agent must say so and not guess) and ambiguous (it must not pick one meaning). A
 at 80% in each group with nothing unsafe. The run's logs are deleted afterwards; the printed
 report is the record.
 
-Live checks, 2026-11-25. Both ran before the agent moved from a hand-written loop to
-`create_agent` (commit `f4c3daa`). The golden test shows the rebuilt agent sends the same
-prompts, tools and messages; it has not been run live yet.
+Live checks on this version, 2026-11-25:
 
 - **Six messages typed into the real terminal app**, the way a person types them (lower case,
   typos, no IDs): two billing messages with no email, two HR questions and two field reports.
-  Seven requests, $0.10. Every answer was one staff would accept, and the report that named
+  Seven requests, $0.08. Every answer was one staff would accept, and the report that named
   only a street asked for the customer and the meter before it ran again.
-- **The 13 cases that failed or were relabelled in the Elixir version's last full run.** 12
-  passed, nothing unsafe, $0.18. R-429 ("Was my meter actually read for October?") still
-  fails: the usage record says the meter recorded 287 kWh, so the agent answered from it, and
-  the label says the records cannot settle whether the meter was read.
+- **The 13 cases that failed or were relabelled in the Elixir version's last full run.** 13
+  passed, nothing unsafe, $0.23. This is one run. On the run before, with the same prompts,
+  R-429 ("Was my meter actually read for October?") failed: the usage record says the meter
+  recorded 287 kWh, the agent answered from it, and the label says the records cannot settle
+  whether the meter was read. That disagreement between label and data is still open.
 
 The full eval of 246 cases has not been run on this version. The cases were seen while tuning;
 a fresh blind batch is the honest next measure.
