@@ -178,9 +178,9 @@ def _trial(label: dict, run: int, directory: Path, today: date | None, models: d
         request, today=today, log_directory=trial_directory, models=models
     )
     decision["consults"] = [
-        {**entry["input"], "answer": entry.get("answer")}
+        {**entry["input"], "answer": entry["answer"]}
         for entry in trace.entries(trial_directory, request.id)
-        if entry["step"] == "ask_department"
+        if entry["step"] == "ask_department" and entry["result"] == "ok"
     ]
 
     usage.start()

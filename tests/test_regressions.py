@@ -2,13 +2,24 @@
 the labelled cases that showed it.
 """
 
+import os
 from datetime import date
 
 import pytest
 
-from tests.support.fixtures import field_report, invoice_dispute, working
-from tests.support.replay import end_turn, tool_use, verdict
-from utility_agents import department, judge, presenter, prompts, verifier
+from tests.support.fixtures import field_report, hr_answer, invoice_dispute, working
+from tests.support.replay import end_turn, grade, role, route, tool_use, verdict
+from utility_agents import (
+    cli,
+    department,
+    evaluation,
+    flags,
+    gate,
+    judge,
+    presenter,
+    prompts,
+    verifier,
+)
 from utility_agents.proposal import (
     Commitment,
     FieldReport,
@@ -330,3 +341,229 @@ REPORTED = Handoff(
     tried="nothing yet",
     customer_id=None,
 )
+
+
+def report(**fields: object) -> Proposal:
+    """A field report for C-1002 and A-2002, visited today, with `fields` replaced."""
+    dated = {"visit_date": TODAY.isoformat(), "visit_date_quote": None, "readings": [], **fields}
+
+    return new(field_report(fields=dated), "F-1", "field_operations", "field_report")
+
+
+@pytest.mark.parametrize(
+    ("message", "value", "quote", "problem"),
+    [
+        ("C-1002, A-2002. Reading 9,876 kWh.", 9876, "Reading 9,876 kWh", None),
+        ("C-1002, A-2002. Reading 14 502 kWh.", 14502, "Reading 14 502 kWh", None),
+        ("C-1002, A-2002. Reading 9,876 kWh.", 987, "Reading 9,876 kWh", "Reading 987"),
+        ("C-1002, A-2002. Reading 9,876 kWh.", 876, "Reading 9,876 kWh", "Reading 876"),
+        ("C-1002, A-2002. Reading 9,876 kWh.", 98.76, "Reading 9,876 kWh", "Reading 98.76"),
+        ("C-1002, A-2002. Meter 12 read 34 kWh.", 1234, "Meter 12 read 34 kWh", "Reading 1234"),
+    ],
+)
+def test_a_reading_whose_digits_only_sit_inside_the_quoted_number_fails_the_fact_check(
+    message, value, quote, problem
+):
+    filed = report(readings=[{"value": value, "unit": "kwh", "quote": quote}])
+    expected = problem and f"{problem} is not in the report as quoted."
+
+    assert verifier.grounded(filed, message, TODAY) == expected
+
+
+@pytest.mark.parametrize(
+    ("visit_date", "quote", "problem"),
+    [
+        ("2026-11-19", "19 Nov", None),
+        ("2026-11-19", "19-11-2026", None),
+        ("2024-11-19", "19 Nov", "Visit date 19 Nov 2024 is not in the report as quoted."),
+        ("2024-11-19", "19-11-2026", "Visit date 19 Nov 2024 is not in the report as quoted."),
+        ("2026-11-19", "19 Nov 2024", "Visit date 19 Nov 2026 is not in the report as quoted."),
+    ],
+)
+def test_a_visit_date_in_another_year_than_the_report_gives_fails_the_fact_check(
+    visit_date, quote, problem
+):
+    message = f"C-1002, A-2002. Loose neutral tightened, {quote}."
+    filed = report(visit_date=visit_date, visit_date_quote=quote)
+
+    assert verifier.grounded(filed, message, TODAY) == problem
+
+
+@pytest.mark.parametrize(
+    ("kind", "words", "problem"),
+    [
+        ("money", "€396.80 on INV-3002", None),
+        ("deadline", "30 Nov 2026", None),
+        ("money", "€500 on INV-3002", "is not in record INV-3002."),
+        ("money", "€396.80 and €500 back", "holds a figure that is not in record INV-3002."),
+        (
+            "money",
+            "a €50 credit for October 2026",
+            "holds a figure that is not in record INV-3002.",
+        ),
+        ("deadline", "30 Nov 2027", "holds a figure that is not in record INV-3002."),
+        ("money", "a refund on INV-3002", "is not in record INV-3002."),
+    ],
+)
+def test_a_commitment_that_only_names_its_record_or_adds_a_figure_fails_the_fact_check(
+    kind, words, problem
+):
+    commitment = Commitment(type=kind, words=words, source="INV-3002")
+    filed = dispute(invoice_id="INV-3002", invoice_quote="INV-3002").model_copy(
+        update={"draft": f"About your bill: {words}.", "commitments": [commitment]}
+    )
+    expected = problem and f"“{words}” {problem}"
+
+    assert verifier.grounded(filed, "My bill INV-3002 is wrong.", TODAY, "C-1005") == expected
+
+
+def test_concerns_filed_before_a_hand_over_still_raise_their_flags_and_tell_their_teams(
+    replay, tmp_path
+):
+    handed_on = invoice_dispute(
+        summary="A threat in a question about leave, not a bill.",
+        kind="needs_attention",
+        concerns=["legal", "vulnerable"],
+        fields={"invoice_id": None, "outcome": "escalate"},
+    )
+    answer = hr_answer(
+        summary="Leave carry-over answered from P-01.",
+        draft="Up to 5 unused leave days carry over to next year.",
+    )
+
+    replay.roles(
+        chief_of_staff=[route("billing")],
+        billing=[tool_use("file_proposal", {**handed_on, "transfer_to": "hr"})],
+        hr=[tool_use("file_proposal", answer)],
+        judge=[verdict(True)],
+    )
+
+    decision = handle(request("R-203"), today=TODAY, log_directory=tmp_path)
+
+    assert decision["proposal"]["concerns"] == []
+    assert decision["flags"] == ["legal or press threat", "vulnerable person"]
+    assert [notice["to"] for notice in decision["notifications"]] == [
+        "Customer care manager",
+        "Customer care priority line",
+    ]
+    assert decision["outcome"] == "held"
+
+
+def test_a_second_hand_over_is_held_for_a_person_and_says_why(replay, tmp_path):
+    handed_on = invoice_dispute(
+        summary="A question about leave, not a bill.",
+        kind="needs_attention",
+        fields={"invoice_id": None, "outcome": "escalate"},
+    )
+    handed_back = hr_answer(
+        summary="A billing question after all.",
+        draft="This is about a bill, so billing should answer it.",
+        transfer_to="billing",
+    )
+
+    replay.roles(
+        chief_of_staff=[route("billing")],
+        billing=[tool_use("file_proposal", {**handed_on, "transfer_to": "hr"})],
+        hr=[tool_use("file_proposal", handed_back)],
+        judge=[verdict(True)],
+    )
+
+    decision = handle(request("R-203"), today=TODAY, log_directory=tmp_path)
+
+    assert decision["outcome"] == "held"
+    assert decision["gate_reason"] == (
+        "hr wants to hand it over again, to billing, and a request is handed over once"
+    )
+    assert len(replay.requests) == 4
+
+
+@pytest.mark.parametrize(
+    ("channel", "customer_id", "flagged"),
+    [
+        ("billing_portal", None, True),
+        ("email", None, True),
+        ("billing_portal", "C-1001", False),
+        ("field_app", None, False),
+        ("hr_portal", None, False),
+    ],
+)
+def test_a_customers_message_with_no_customer_on_record_is_flagged_on_every_customer_channel(
+    channel, customer_id, flagged
+):
+    assert (flags.UNVERIFIED in flags.raised([], channel, customer_id)) is flagged
+
+
+@pytest.mark.parametrize("stage", [None, "", "Walk", "sprint"])
+def test_a_missing_or_misspelled_stage_holds_the_request_and_never_acts_alone(stage):
+    conditions = gate.Conditions(
+        stage=stage, automatic_today=0, daily_cap=50, flags=[], transferred=False
+    )
+    passed = {"format": None, "grounded": None, "sense": None}
+
+    assert gate.decide(report(), passed, conditions) == (
+        "held",
+        "field report has no stage of crawl, walk or run, so a person handles every one",
+    )
+
+
+def test_a_consult_that_failed_does_not_count_as_asking_the_department(replay, tmp_path):
+    [label] = [label for label in labels() if label["request_id"] == "F-161"]
+    filed = field_report(
+        draft="Meter fine. Billing could not be reached about the October bill.",
+        fields={
+            "customer_id": "C-1009",
+            "asset_id": "A-2009",
+            "visit_date": "2026-11-24",
+            "visit_date_quote": "24 Nov",
+            "fault_type": "no_fault",
+            "follow_up": "none",
+            "readings": [{"value": 31560, "unit": "kwh", "quote": "reading 31,560 kWh"}],
+        },
+    )
+    question = {"department": "billing", "question": "Is the October invoice of C-1009 paid?"}
+    field_agent = iter([tool_use("ask_department", question), tool_use("file_proposal", filed)])
+    answers = {
+        "field_operations": lambda: (200, next(field_agent)),
+        "billing": lambda: (400, {"error": "down"}),
+        "judge": lambda: (200, verdict(True)),
+        "grader": lambda: (200, grade(True)),
+    }
+    replay.respond(lambda body: answers[role(body)]())
+
+    run = evaluation.run(
+        "field_report", log_directory=tmp_path, today=date(2026, 11, 24), labels=[label]
+    )
+
+    assert [result.outcome for result in run.results] == ["did not ask billing"]
+
+
+def test_the_environment_file_takes_quotes_and_export_and_never_overrides_the_shell(
+    tmp_path, monkeypatch
+):
+    names = ["QUOTED", "SINGLE", "EXPORTED", "PLAIN", "COMMENTED", "FROM_SHELL"]
+
+    for name in names:
+        monkeypatch.setenv(f"UA_TEST_{name}", "")
+        monkeypatch.delenv(f"UA_TEST_{name}")
+
+    monkeypatch.setenv("UA_TEST_FROM_SHELL", "shell")
+    file = tmp_path / ".env"
+    file.write_text(
+        'UA_TEST_QUOTED="sk-quoted"\n'
+        "UA_TEST_SINGLE='one two'\n"
+        "export UA_TEST_EXPORTED=yes\n"
+        "UA_TEST_PLAIN = plain \n"
+        "# UA_TEST_COMMENTED=1\n"
+        "UA_TEST_FROM_SHELL=file\n"
+    )
+
+    cli.load_environment(file)
+
+    assert [os.environ.get(f"UA_TEST_{name}") for name in names] == [
+        "sk-quoted",
+        "one two",
+        "yes",
+        "plain",
+        None,
+        "shell",
+    ]

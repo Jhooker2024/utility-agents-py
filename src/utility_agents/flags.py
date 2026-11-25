@@ -1,7 +1,8 @@
 """The flags on a request. Each is a concern from the structured answer of the model that decided
 the request: the chief of staff when it sent a message to a person's queue, the department
 agent otherwise. The schema limits concerns to the ones in `CONCERNS`, so no text is parsed
-here. One flag comes from code: a customer message from a sender not on record.
+here. One flag comes from code: a customer's message from a sender not on record, on any
+channel that is not one of the `staff_channels`.
 
 Any flag holds the request for a person; `notifications` tells the team that handles it.
 `CONCERNS` is the one table of concerns: in the order the schemas list them, each with its
@@ -92,11 +93,10 @@ def notice(concern: str, request_id: str) -> str:
 
 def raised(concerns: list[str], channel: str, customer_id: str | None) -> list[Flag]:
     """A flag for each concern, in the order given, plus the unverified-sender flag for a
-    free-text message (a channel without a route in `channel_routes`) with no customer ID."""
+    customer's message with no customer ID: any channel but the ones staff write on."""
     named = [Flag(concern, label(concern)) for concern in dict.fromkeys(concerns)]
-    free_text = channel not in settings["channel_routes"]
 
-    if free_text and customer_id is None:
+    if customer_id is None and channel not in settings["staff_channels"]:
         return [*named, UNVERIFIED]
 
     return named

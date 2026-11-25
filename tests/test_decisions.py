@@ -18,8 +18,8 @@ def test_a_stored_decision_is_found_by_request_id_as_it_reads_back(tmp_path):
     )
 
     assert decisions.find(tmp_path, "F-001") == stored
-    assert stored["outcome"] == "automatic"
-    assert stored["proposal"]["kind"] == "record_update"
+    assert stored["type"] == "decision"
+    assert stored["date"] == "2026-11-24"
     assert decisions.find(tmp_path, "F-002") is None
 
 

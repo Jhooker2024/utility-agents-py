@@ -15,6 +15,10 @@ channel_routes:
   field_app: field_report
   hr_portal: policy_question
 
+# The channels staff write on: a technician's report and an employee's question. A message on
+# any other channel is a customer's, and is flagged when its sender is not a customer on record.
+staff_channels: [field_app, hr_portal]
+
 # How far each playbook may go on its own: crawl, walk or run.
 stages:
   invoice_dispute: crawl

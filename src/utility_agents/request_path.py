@@ -8,8 +8,9 @@
 model again. A request held without one (no API key, a failed API call, the kill switch, a
 person's queue) is worked again, because nothing about it was decided. Otherwise the department
 works the request. When its proposal names another department in `transfer_to`, that department
-works it once, with what was tried, and only its proposal becomes the decision. Every step goes
-to the trace and the decision to the log.
+works it once, with what was tried, and only its proposal becomes the decision. The concerns
+of both proposals raise their flags. A proposal that names a second transfer is held for a
+person. Every step goes to the trace and the decision to the log.
 """
 
 import dataclasses
@@ -108,12 +109,12 @@ def _decide(request: Request, context: Context) -> dict:
     routed, route_step = _traced(
         "chief_of_staff", lambda: chief_of_staff.route(request, context), _routed_text
     )
-    worked, playbook, steps = _work(routed, request.id, context)
+    worked, playbook, steps, concerns = _work(routed, request.id, context)
     filed = worked.proposal
     checks, verify_step = _traced(
         "verifier", lambda: verifier.verify(worked, request, context), _checks_text
     )
-    raised = flags.raised(_concerns(routed, filed), request.channel, request.customer_id)
+    raised = flags.raised(concerns, request.channel, request.customer_id)
     conditions = gate.Conditions(
         stage=decisions.stage(
             context.log_directory, playbook, settings["stages"].get(playbook), context.today
@@ -159,17 +160,20 @@ def _traced[Result](
     return result, {**timed, "result": describe(result)}
 
 
+# What was returned, its playbook, the steps and the concerns. Every model that decided
+# something about the request names its concerns: the chief of staff when it sent the message
+# to a person, and each department that filed a proposal, also one that handed the request on.
 def _work(
     routed: chief_of_staff.Routed | chief_of_staff.Person, request_id: str, context: Context
-) -> tuple[Worked, str | None, list[dict]]:
+) -> tuple[Worked, str | None, list[dict], list[str]]:
     if isinstance(routed, chief_of_staff.Person):
-        return Worked(held_reason=routed.reason), None, []
+        return Worked(held_reason=routed.reason), None, [], routed.concerns
 
     worked, steps = _run(routed.playbook, routed.handoff, request_id, context)
     filed = worked.proposal
 
     if filed is None or filed.transfer_to is None:
-        return worked, routed.playbook, steps
+        return worked, routed.playbook, steps, _filed_concerns(worked)
 
     tried = f"The {filed.department} agent passed it on: {filed.summary}"
     transfer = {"step": "transfer", "result": filed.transfer_to, "milliseconds": 0}
@@ -178,7 +182,9 @@ def _work(
         playbook, dataclasses.replace(routed.handoff, tried=tried), request_id, context
     )
 
-    return worked, playbook, [*steps, transfer, *more_steps]
+    concerns = [*filed.concerns, *_filed_concerns(worked)]
+
+    return worked, playbook, [*steps, transfer, *more_steps], concerns
 
 
 def _run(
@@ -192,15 +198,8 @@ def _run(
     return worked, [*worked.steps, step]
 
 
-# The model that decided the request names its concerns: the chief of staff when it sent the
-# message to a person, the department agent when it filed a proposal.
-def _concerns(
-    routed: chief_of_staff.Routed | chief_of_staff.Person, filed: proposal.Proposal | None
-) -> list[str]:
-    if isinstance(routed, chief_of_staff.Person):
-        return routed.concerns
-
-    return [] if filed is None else filed.concerns
+def _filed_concerns(worked: Worked) -> list[str]:
+    return [] if worked.proposal is None else worked.proposal.concerns
 
 
 def _worked_text(worked: Worked) -> str:

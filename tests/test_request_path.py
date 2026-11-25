@@ -131,7 +131,6 @@ def test_a_transfer_is_one_logged_step_only_the_final_proposal_is_the_decision_a
     answer = hr_answer(
         summary="Leave carry-over answered from P-01.",
         draft="Up to 5 unused leave days carry over to next year.",
-        transfer_to="billing",
     )
 
     replay.roles(

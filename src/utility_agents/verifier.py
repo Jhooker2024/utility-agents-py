@@ -5,25 +5,28 @@ reason it fails.
     retry. A held request fails it with the reason it was held.
   * grounded: checked in code against the proposal's structured fields, never by searching the
     message for patterns. Every ID field matches a record in the department's scope. For a
-    field report, each reading's quote appears in the report and holds the reading's digits,
-    the visit date's quote appears in the report and names that date (or, with no quote, the
-    visit date is today or left empty), and the note lists no commitment: a field report
-    promises nothing. A meter or cable belongs to the customer named. For an invoice dispute,
-    the invoice belongs to the customer the request is from, and the customer's words that
-    identify it appear in the message; with no such words the invoice may be named only when
-    it is the customer's only one. Every commitment's words appear in the draft and, except
-    for a legal one, in its source: the message, or a fact its record's tool row shows,
-    written the usual ways.
+    field report, each reading's quote appears in the report and holds the reading as a
+    number of its own, the visit date's quote appears in the report and names that date in
+    the year it gives, or this year when it gives none (with no quote, the visit date is
+    today or left empty), and the note lists no commitment: a field report promises nothing.
+    A meter or cable belongs to the customer named, and every customer the report could mean
+    is on record. For an invoice dispute, the invoice belongs to the customer the request is
+    from, and the customer's words that identify it appear in the message; with no such words
+    the invoice may be named only when it is the customer's only one. Every commitment's
+    words appear in the draft and, except for a legal one, in its source: the message, or a
+    record. From a record the words must give one of its figures or dates, written the usual
+    ways, and no figure the record does not hold.
   * sense: a judge model sees only the message and the proposal, never the playbook or the
     agent's prompt, and says whether the proposal fits the message.
 
 Text is compared lowercased with runs of whitespace as one space.
 """
 
+from collections.abc import Iterator
 from datetime import date
 
 from utility_agents import json_lines, model, prompts, records, tool_text
-from utility_agents.proposal import Commitment, FieldReport, InvoiceDispute, Proposal
+from utility_agents.proposal import Commitment, FieldReport, InvoiceDispute, Proposal, Reading
 from utility_agents.text import MONTHS, day, decimals, figure, grouped
 from utility_agents.work import Context, Request, Worked
 
@@ -46,6 +49,8 @@ OTHER_MONTH_NAMES = (
 )
 ORDINAL_SUFFIXES = ("", "st", "nd", "rd", "th", "e")
 PERIOD_FIELD = "period"
+DECIMAL_MARKS = ".,"
+YEAR_DIGITS = 4
 NOTHING_TO_CHECK = "There is no proposal to check."
 
 
@@ -128,7 +133,7 @@ def _field_report_problems(proposal: Proposal, message: str, today: date) -> lis
     readings = [
         f"Reading {figure(reading.value)} is not in the report as quoted."
         for reading in fields.readings
-        if not _quoted(reading.quote, message, _digits(figure(reading.value)))
+        if not _quoted(reading, message)
     ]
     promises = [
         f"The note lists a commitment ({commitment.words}), and a field report promises nothing."
@@ -181,8 +186,14 @@ def _invoice_problems(proposal: Proposal, message: str, customer_id: str | None)
     return problems
 
 
-def _quoted(quote: str, message: str, wanted_digits: str) -> bool:
-    return _appears(quote, message) and wanted_digits != "" and wanted_digits in _digits(quote)
+# The quote must be in the report and hold the reading as a number of its own: 987 is not in
+# "9,876 kWh".
+def _quoted(reading: Reading, message: str) -> bool:
+    quote = _normalized(reading.quote)
+
+    return _appears(reading.quote, message) and any(
+        _mentions(quote, written) for written in _number_renderings(reading.value)
+    )
 
 
 def _visit_date_problems(fields: FieldReport, message: str, today: date) -> list[str]:
@@ -194,7 +205,7 @@ def _visit_date_problems(fields: FieldReport, message: str, today: date) -> list
     if quote is None:
         return [f"Visit date {day(visit)} has no words in the report and is not today."]
 
-    if _appears(quote, message) and _names_date(quote, visit):
+    if _appears(quote, message) and _names_date(quote, visit, today):
         return []
 
     return [f"Visit date {day(visit)} is not in the report as quoted."]
@@ -255,14 +266,23 @@ def _sourced(commitment: Commitment, message: str, department: str) -> list[str]
         return [f"Record {source} is not in the records."]
 
     text = _normalized(words)
-    found = any(
-        _mentions(text, rendering)
-        for collection, record in named
-        for field, value in _facts(collection, record)
-        for rendering in _renderings(field, value)
-    )
+    facts = [fact for collection, record in named for fact in _facts(collection, record)]
+    figures = [written for fact in facts if _is_figure(*fact) for written in _renderings(*fact)]
+    names = [written for fact in facts if not _is_figure(*fact) for written in _renderings(*fact)]
 
-    return [] if found else [f"“{words}” is not in record {source}."]
+    if not any(_mentions(text, written) for written in figures):
+        return [f"“{words}” is not in record {source}."]
+
+    if _digits(_without(text, [*figures, *names])):
+        return [f"“{words}” holds a figure that is not in record {source}."]
+
+    return []
+
+
+# A record's amounts, counts, periods and dates are what a promise can rest on. Its ID, its
+# customer and its status only say which record it is.
+def _is_figure(field: str, value: object) -> bool:
+    return field == PERIOD_FIELD or not isinstance(value, str) or _date(value) is not None
 
 
 # A record's facts as its tool row shows them. An invoice row also shows the price in the
@@ -297,24 +317,40 @@ def _renderings(field: str, value: object) -> list[str]:
     if isinstance(value, bool):
         return []
 
-    if isinstance(value, int):
-        plain = str(value)
-
-        return _unique([plain, *(grouped(plain, separator) for separator in (",", ".", " "))])
-
-    if isinstance(value, float):
-        two_decimals, shortest = decimals(value, 2), figure(value)
-
-        return _unique(
-            [two_decimals, two_decimals.replace(".", ","), shortest, shortest.replace(".", ",")]
-        )
+    if isinstance(value, int | float):
+        return _number_renderings(value)
 
     if isinstance(value, str):
         written = _date(value)
 
-        return [_normalized(value)] if written is None else _date_renderings(written)
+        if written is None:
+            return [_normalized(value)]
+
+        return [*_date_renderings(written), *_dated_renderings(written)]
 
     return []
+
+
+# A number as a report or a draft may write it: plain or in groups of three, with a decimal
+# point or comma. Only a whole number may stand without decimals.
+def _number_renderings(number: float) -> list[str]:
+    digits = str(int(number))
+    fractions = _unique([decimals(number, 2).partition(".")[2], figure(number).partition(".")[2]])
+    wholes = [
+        (digits, ".,"),
+        (grouped(digits, ","), "."),
+        (grouped(digits, "."), ","),
+        (grouped(digits, " "), ".,"),
+    ]
+
+    return _unique(
+        [
+            whole + mark + fraction if fraction else whole
+            for whole, marks in wholes
+            for fraction in fractions
+            for mark in marks
+        ]
+    )
 
 
 # A period such as "2026-09" as a draft may write it: "September 2026", "sept 2026",
@@ -337,30 +373,53 @@ def _date(value: str) -> date | None:
         return None
 
 
-def _names_date(quote: str, written: date) -> bool:
+# The quote names the day and month, in the year it gives. A quote without a year means this
+# year, as the playbook reads it.
+def _names_date(quote: str, written: date, today: date) -> bool:
     text = _normalized(quote)
+    years = [int(run) for run in _digit_runs(text) if len(run) == YEAR_DIGITS]
+    year = written.year in years if years else written.year == today.year
 
-    return any(_mentions(text, rendering) for rendering in _date_renderings(written))
+    return year and any(_mentions(text, rendering) for rendering in _date_renderings(written))
 
 
 def _date_renderings(written: date) -> list[str]:
+    """A date as a report or a draft may write it, without its year."""
+    numeric = [text for text, _separator in _numeric_dates(written)]
+
+    return [written.isoformat(), *numeric, *_named_dates(written)]
+
+
+def _dated_renderings(written: date) -> list[str]:
+    """A date written with its year, so a year in a draft is one the record holds."""
+    year = str(written.year)
+    numeric = [text + separator + year for text, separator in _numeric_dates(written)]
+    named = [text + joiner + year for text in _named_dates(written) for joiner in (" ", ", ")]
+
+    return [*numeric, *named]
+
+
+def _numeric_dates(written: date) -> list[tuple[str, str]]:
+    """Day and month in digits, each with the separator it uses."""
     days = _unique([str(written.day), f"{written.day:02}"])
     months = _unique([str(written.month), f"{written.month:02}"])
-    numeric = [
-        day_text + separator + month_text
+
+    return [
+        (day_text + separator + month_text, separator)
         for day_text in days
         for month_text in months
         for separator in ("-", "/", ".")
     ]
-    named = [
+
+
+def _named_dates(written: date) -> list[str]:
+    return [
         rendering
         for name in _month_names(written.month)
         for suffix in ORDINAL_SUFFIXES
         for joiner in (" ", " of ")
         for rendering in (f"{written.day}{suffix}{joiner}{name}", f"{name} {written.day}{suffix}")
     ]
-
-    return [written.isoformat(), *numeric, *named]
 
 
 def _month_names(month: int) -> tuple[str, ...]:
@@ -373,24 +432,44 @@ def _appears(phrase: str | None, text: str) -> bool:
     return bool(phrase) and _normalized(phrase) in _normalized(text)
 
 
-# Whether `text` holds `rendering` with no digit just before or after it, so "1 nov" is not
-# found inside "11 nov".
+# Whether `text` holds `rendering` as a figure of its own, so "1 nov" is not found inside
+# "11 nov" and "876" is not found inside "9,876".
 def _mentions(text: str, rendering: str) -> bool:
+    return next(_mentioned(text, rendering), None) is not None
+
+
+def _mentioned(text: str, rendering: str) -> Iterator[tuple[int, int]]:
+    """Where `text` holds `rendering` with no number running on before or after it."""
     start = text.find(rendering) if rendering else -1
 
     while start != -1:
         end = start + len(rendering)
 
-        if not _digit_at(text, start - 1) and not _digit_at(text, end):
-            return True
+        if not _runs_on(text, start - 1, -1) and not _runs_on(text, end, 1):
+            yield start, end
 
         start = text.find(rendering, start + 1)
 
-    return False
+
+# A number runs on through a digit, or through a decimal point or comma with a digit behind it.
+def _runs_on(text: str, position: int, step: int) -> bool:
+    joined = 0 <= position < len(text) and text[position] in DECIMAL_MARKS
+
+    return _digit_at(text, position) or (joined and _digit_at(text, position + step))
 
 
 def _digit_at(text: str, position: int) -> bool:
     return 0 <= position < len(text) and text[position] in records.DIGITS
+
+
+def _without(text: str, renderings: list[str]) -> str:
+    """`text` with every mention of a rendering blanked, the longest first, so what is left
+    is what no fact of the record explains."""
+    for rendering in sorted(set(renderings), key=len, reverse=True):
+        for start, end in list(_mentioned(text, rendering)):
+            text = text[:start] + " " * (end - start) + text[end:]
+
+    return text
 
 
 def _normalized(text: str) -> str:
@@ -399,6 +478,11 @@ def _normalized(text: str) -> str:
 
 def _digits(text: str) -> str:
     return "".join(character for character in text if character in records.DIGITS)
+
+
+def _digit_runs(text: str) -> list[str]:
+    """Each run of digits in `text`: "19-11-2026" is "19", "11" and "2026"."""
+    return "".join(character if character in records.DIGITS else " " for character in text).split()
 
 
 def _unique(values: list[str]) -> list[str]:

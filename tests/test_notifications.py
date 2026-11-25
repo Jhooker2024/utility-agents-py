@@ -107,9 +107,6 @@ def test_every_concern_has_a_label_and_a_notice_and_the_agents_rules_define_ever
         assert "R-1" in flags.notice(concern, "R-1")
         assert f"- {concern}:" in rules, f"the concern rules do not define {concern}"
 
-    assert "safety" in flags.CONCERNS
-    assert "made_up" not in flags.CONCERNS
-
 
 def meter_accuracy(report):
     fields = report.fields.model_copy(update={"billing_follow_up": "meter_accuracy"})

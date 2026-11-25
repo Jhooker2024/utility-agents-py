@@ -110,9 +110,10 @@ The deck runs on AWS Bedrock; this example calls the Anthropic API directly.
 - **Checks in code first.** Every ID exists in the department's records. Each reading and the
   visit date carry the report's exact words, which must be in the report and hold that figure or
   date. An invoice carries the customer's words that identify it and must belong to the customer
-  who asks. Each commitment names its words and its source (the message or a record ID), and
-  code finds them in the draft and the source. The judge only answers "does this fit the
-  message" and never sees the playbook.
+  who asks. Each commitment names its words and its source (the message or a record ID). Code
+  finds the words in the draft; from a record they must give one of its figures or dates and
+  no figure the record does not hold. The judge only answers "does this fit the message" and
+  never sees the playbook.
 - **One retry rule.** The Anthropic SDK also retries a reply that timed out and a gateway
   timeout. The API may still finish and bill such a request, so the SDK's retries are off and
   `model.retry` allows only what was never worked. The agent's retry middleware and the
@@ -134,10 +135,12 @@ request ─► chief_of_staff ─► department ─► (transfer?) ─► verifi
 - `department` builds the agent with `create_agent`: its playbook, its read tools
   (`find_customer`, `get_record`, `list_records`), `ask_department` and `file_proposal`. At
   most 8 model requests and 1 consult. A proposal that names another department in
-  `transfer_to` is handed over once; a field report is never handed over.
+  `transfer_to` is handed over once, and the concerns of both departments raise their flags. A
+  second hand-over is held for a person. A field report is never handed over.
 - `gate`: crawl holds everything, walk lets a CRM update act alone and makes replies one click,
   run acts alone. Today field reports are at walk, invoice disputes at crawl (and never act
-  alone) and HR questions at run. Needs attention, a failed check or any flag holds; a
+  alone) and HR questions at run. A stage that is missing or misspelled holds. Needs
+  attention, a failed check or any flag holds; a
   commitment, an unconfirmed fact, a hand-over or the daily cap of 50 makes it one click. A
   staff rejection of an automatic decision drops the playbook one stage for 30 days.
 - `notifications` tells the team that handles each flag once: the duty desk, revenue protection,
@@ -213,6 +216,11 @@ two billing messages with no email, two HR questions and two field reports. Seve
 $0.08. Every answer was one staff would accept, and the report that named only a street asked
 for the customer and the meter before it ran again.
 
+After that run a code review found ten problems, among them fact checks that let a wrong
+reading, a wrong year and an invented amount through. They are fixed, each with a test in
+`tests/test_regressions.py`. The fixes have not run live, so the numbers above are from before
+them.
+
 The cases were seen while tuning; a fresh blind batch is the honest next measure.
 
 ## Assumptions
@@ -221,8 +229,8 @@ The cases were seen while tuning; a fresh blind batch is the honest next measure
   the client reviews them.
 - A date without a year is read in the current year.
 - The customer a request is from is known when the channel says so (the billing portal, or an
-  email address on record). A free-text sender not on record is flagged and gets no check
-  against a customer.
+  email address on record). A customer's message from a sender not on record is flagged on
+  every channel and gets no check against a customer.
 
 ## Known issues I'd fix with more time
 

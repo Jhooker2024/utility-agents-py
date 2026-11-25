@@ -5,10 +5,11 @@ structured concerns (`flags`) and whether the request was handed over between de
 Every input is a structured field or a count; nothing reads the message text.
 
 Crawl holds everything. Walk lets `record_update` act alone (file a CRM update) and makes
-`reply` one click. Run acts alone. At every stage `needs_attention`, which the agent files when
-it wants a person, holds.
+`reply` one click. Run acts alone. A stage that is missing or is none of these holds. At every
+stage `needs_attention`, which the agent files when it wants a person, holds.
 
-Any failed check or flag holds. An automatic outcome becomes one click past the daily cap, when
+Any failed check or flag holds, and so does a proposal that names a second transfer: a request
+is handed over once. An automatic outcome becomes one click past the daily cap, when
 the proposal lists commitments, when the agent could not confirm something, when the request
 was handed over between departments, and always for the `NEVER_AUTOMATE` playbooks, whatever
 their configured stage.
@@ -45,7 +46,7 @@ def decide(proposal: Proposal | None, checks: dict, conditions: Conditions) -> t
         return "held", "there is no proposal to act on"
 
     outcome, stage_reason = _by_stage(proposal, conditions.stage)
-    stops = _stop_reasons(checks, conditions)
+    stops = _stop_reasons(proposal, checks, conditions)
     limits = _limit_reasons(proposal, conditions)
 
     if outcome == "held":
@@ -74,10 +75,16 @@ def _by_stage(proposal: Proposal, stage: str | None) -> tuple[str, str]:
     if stage == "walk":
         return "one_click", "at walk, a customer reply needs one click"
 
-    return "automatic", f"{words(proposal.playbook)} is at run"
+    if stage == "run":
+        return "automatic", f"{words(proposal.playbook)} is at run"
+
+    return "held", (
+        f"{words(proposal.playbook)} has no stage of crawl, walk or run, "
+        "so a person handles every one"
+    )
 
 
-def _stop_reasons(checks: dict, conditions: Conditions) -> list[str]:
+def _stop_reasons(proposal: Proposal, checks: dict, conditions: Conditions) -> list[str]:
     failed = [f"{FAILED_CHECKS[check]}: {reason}" for check, reason in checks.items() if reason]
     reasons = []
 
@@ -86,6 +93,12 @@ def _stop_reasons(checks: dict, conditions: Conditions) -> list[str]:
 
     if conditions.flags:
         reasons.append("flagged: " + ", ".join(flag.label for flag in conditions.flags))
+
+    if conditions.transferred and proposal.transfer_to is not None:
+        reasons.append(
+            f"{words(proposal.department)} wants to hand it over again, to "
+            f"{words(proposal.transfer_to)}, and a request is handed over once"
+        )
 
     return reasons
 

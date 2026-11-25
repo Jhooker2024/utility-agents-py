@@ -9,7 +9,7 @@
     utility-agents eval [--playbook <playbook>] [--runs <1-10>] [--model <model_id>]
 
 Variables in `.env` in the current directory, such as `ANTHROPIC_API_KEY=...`, are loaded first,
-so the key never has to be typed into a shell.
+so the key never has to be typed into a shell. A variable the shell already set keeps its value.
 
 `run` and `submit` print the decision as JSON; a request decided before prints its stored
 decision. `review` records what a person did with a decision. `eval` runs a playbook's labelled
@@ -30,6 +30,7 @@ USAGE = __doc__
 # Each eval run is one paid model call per case, so the runs per case are capped.
 MAX_RUNS = 10
 ENVIRONMENT_FILE = ".env"
+QUOTES = "\"'"
 
 Outcome = tuple[str, str]
 
@@ -64,16 +65,24 @@ def run(arguments: list[str]) -> Outcome:
 
 
 def load_environment(path: Path) -> None:
-    """Sets every `NAME=value` line of the file as an environment variable. A line that
-    starts with `#` or has no value is skipped."""
+    """Sets every `NAME=value` line of the file as an environment variable, unless the shell
+    already set that name. A leading `export` and quotes around the value are dropped. A line
+    that starts with `#` or has no value is skipped."""
     if not path.exists():
         return
 
     for line in path.read_text().split("\n"):
-        name, separator, value = line.partition("=")
+        name, separator, value = line.strip().removeprefix("export ").partition("=")
+        value = _unquoted(value.strip())
 
-        if separator and not name.startswith("#") and value.strip() != "":
-            os.environ[name.strip()] = value.strip()
+        if separator and not name.startswith("#") and value != "":
+            os.environ.setdefault(name.strip(), value)
+
+
+def _unquoted(value: str) -> str:
+    quoted = len(value) > 1 and value[0] == value[-1] and value[0] in QUOTES
+
+    return value[1:-1] if quoted else value
 
 
 def _decide(request_id: str) -> Outcome:
