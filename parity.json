@@ -15,6 +15,14 @@
     "no regular expression in src or tests": {
       "passes": true,
       "check": "tests/test_thesis.py and the acceptance grep"
+    },
+    "seed data can answer what the screens invite": {
+      "passes": true,
+      "check": "pytest tests/test_seed_data.py"
+    },
+    "golden test after the known-problem fixes": {
+      "passes": true,
+      "check": "pytest tests/test_golden.py; diff against the Elixir recording read: 5 of 15 entries changed, all intended"
     }
   },
   "modules": {
@@ -93,8 +101,8 @@
       "check": "scratchpad drive.py offline billing_offline.json"
     },
     "terminal app, field report that asks for customer and meter, replayed model": {
-      "passes": false,
-      "check": "scratchpad drive.py offline field_offline.json: second run not inspected yet"
+      "passes": true,
+      "check": "scratchpad drive.py offline field_offline.json: asked for both, ran again, done without a person"
     },
     "six typed messages against the live API": {
       "passes": false,
@@ -103,29 +111,40 @@
     "full live eval": {
       "passes": false,
       "check": "needs Justin's approval"
+    },
+    "demo with five requests, replayed model": {
+      "passes": true,
+      "check": "demo.run() with replayed answers, 16 model requests"
     }
   },
   "known_problems": {
     "1": {
-      "passes": false
+      "passes": true,
+      "check": "pytest tests/test_regressions.py (offline); live eval still to run"
     },
     "2": {
-      "passes": false
+      "passes": true,
+      "check": "pytest tests/test_regressions.py (offline); live eval still to run"
     },
     "3": {
-      "passes": false
+      "passes": true,
+      "check": "pytest tests/test_regressions.py (offline); live eval still to run"
     },
     "4": {
-      "passes": false
+      "passes": true,
+      "check": "pytest tests/test_regressions.py (offline); live eval still to run"
     },
     "5": {
-      "passes": false
+      "passes": true,
+      "check": "pytest tests/test_regressions.py (offline); live eval still to run"
     },
     "6": {
-      "passes": false
+      "passes": true,
+      "check": "pytest tests/test_regressions.py (offline); live eval still to run"
     },
     "7": {
-      "passes": false
+      "passes": false,
+      "check": "offline flows pass; the six typed messages against the live API need Justin's yes"
     }
   }
 }
