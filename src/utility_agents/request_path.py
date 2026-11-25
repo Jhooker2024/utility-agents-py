@@ -62,7 +62,7 @@ def new_request(channel: str, message: str, customer_id: str | None) -> Request:
     request_id = f"S-{time.time_ns() // 1_000_000}-{secrets.token_hex(4)}"
 
     if channel == FIELD_APP:
-        message = f"Sent from the field app on {day(_today())}.\n{message}"
+        message = f"Sent from the field app on {day(utc_today())}.\n{message}"
 
     return Request(request_id, channel, customer_id, message)
 
@@ -77,7 +77,7 @@ def handle(
     are for tests and the eval; `models` overrides the model of any role in the `models`
     setting."""
     context = Context(
-        today=today or _today(),
+        today=today or utc_today(),
         models={**settings["models"], **(models or {})},
         log_directory=str(log_directory or settings["log_directory"]),
     )
@@ -99,7 +99,8 @@ def run_directory(name: str) -> Path:
     return Path(settings["log_directory"]) / f"{name}-{timestamp}-{secrets.token_hex(4)}"
 
 
-def _today() -> date:
+def utc_today() -> date:
+    """Today in UTC, the day a typed request and a staff review are dated."""
     return datetime.now(UTC).date()
 
 

@@ -1,8 +1,9 @@
 """Token usage and cost per request. Every API response adds its usage to the count of the
-thread that made the call; `request_path.handle` starts a count before a request and takes it
-after, so the decision records what that request cost. A request runs in one thread, consults
-included. Prices are per million tokens, in the `prices` setting; a model without a price has
-no cost.
+request being worked; `request_path.handle` starts a count before a request and takes it after,
+so the decision records what that request cost. Requests worked at the same time, as in the
+eval, each keep their own count. The agent's graph runs its steps in a copy of the caller's
+context, so a count is one list that every copy shares. Prices are per million tokens, in the
+`prices` setting; a model without a price has no cost.
 """
 
 from contextvars import ContextVar
@@ -27,8 +28,13 @@ def start() -> None:
 def add(model: str, usage: dict) -> None:
     """Adds one API response's usage for `model`."""
     counts = {field: usage.get(field) or 0 for field in PRICES}
+    calls = _calls.get(None)
 
-    _calls.set([*_calls.get([]), (model, counts)])
+    if calls is None:
+        calls = []
+        _calls.set(calls)
+
+    calls.append((model, counts))
 
 
 def take() -> dict:

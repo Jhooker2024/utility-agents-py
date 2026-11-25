@@ -23,6 +23,10 @@
     "golden test after the known-problem fixes": {
       "passes": true,
       "check": "pytest tests/test_golden.py; diff against the Elixir recording read: 5 of 15 entries changed, all intended"
+    },
+    "agent built on LangChain 1.0 create_agent with middleware": {
+      "passes": true,
+      "check": "pytest (157 pass); golden diff against the hand-written loop: only the caching marker's ttl in the three department requests"
     }
   },
   "modules": {
@@ -106,7 +110,7 @@
     },
     "six typed messages against the live API": {
       "passes": true,
-      "check": "2026-11-25, `uv run utility-agents` driven in a pseudo-terminal, 7 requests, $0.0974; every screen read: each answer is one staff would accept, and the street-only field report asked for the customer and the meter"
+      "check": "2026-11-25, `uv run utility-agents` driven in a pseudo-terminal, 7 requests, $0.0974; every screen read: each answer is one staff would accept, and the street-only field report asked for the customer and the meter NOTE: ran on the hand-written loop (commit f4c3daa), not yet repeated on the create_agent build"
     },
     "full live eval": {
       "passes": false,
@@ -115,6 +119,10 @@
     "demo with five requests, replayed model": {
       "passes": true,
       "check": "demo.run() with replayed answers, 16 model requests"
+    },
+    "terminal app on the create_agent build, field report flow, replayed model": {
+      "passes": true,
+      "check": "scratchpad drive.py offline field_offline.json"
     }
   },
   "known_problems": {

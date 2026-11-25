@@ -1,16 +1,22 @@
 import contextlib
+from datetime import date
 
 import anthropic
 import httpx
 import pytest
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import AIMessage
 
-from tests.support.replay import end_turn, json_text, text
-from utility_agents import model
+from tests.support.fixtures import hr_answer
+from tests.support.replay import end_turn, json_text, text, tool_use
+from utility_agents import department, model
 from utility_agents.config import settings
-from utility_agents.schema import strict_object
+from utility_agents.work import Context, Handoff, Worked
 
 REQUEST = httpx.Request("POST", "https://api.anthropic.com/v1/messages")
+
+
+FITS = {"reason": "Fits.", "sensible": True}
+FILED = hr_answer()
 
 
 class Judged(model.Answer):
@@ -32,29 +38,28 @@ def test_a_request_the_api_never_started_is_retried_one_it_may_have_finished_is_
 def test_the_sent_body_has_the_token_limit_a_cached_system_prompt_and_a_cache_only_with_tools(
     replay,
 ):
-    replay.sequence([end_turn("Done."), json_text({"reason": "Fits.", "sensible": True})])
-    tool = {
-        "name": "look_up",
-        "description": "Look one thing up.",
-        "input_schema": strict_object({"query": {"type": "string"}}, ["query"]),
-    }
+    replay.sequence([end_turn("Done."), end_turn("Done."), json_text(FITS)])
 
-    model.create_message("m", "Be brief.", [HumanMessage("Hi.")], [tool])
+    agent_works()
     model.structured("m", "Be brief.", "Hi.", Judged)
 
-    system = [{"type": "text", "text": "Be brief.", "cache_control": {"type": "ephemeral"}}]
-    with_tools, without_tools = replay.requests
+    with_tools, _nudged, without_tools = replay.requests
+    five_minutes = {"type": "ephemeral", "ttl": "5m"}
+    [system] = with_tools["system"]
 
-    assert with_tools["model"] == "m"
+    assert with_tools["model"] == "claude-sonnet-5-5"
     assert with_tools["max_tokens"] == 16_000
-    assert with_tools["cache_control"] == {"type": "ephemeral"}
-    assert with_tools["system"] == system
-    assert [sent["name"] for sent in with_tools["tools"]] == ["look_up"]
+    assert with_tools["cache_control"] == five_minutes
+    assert system["cache_control"] == five_minutes
+    assert with_tools["tool_choice"] == {"type": "auto", "disable_parallel_tool_use": True}
+    assert [sent["strict"] for sent in with_tools["tools"]] == [True] * 4
 
     assert without_tools["model"] == "m"
     assert without_tools["max_tokens"] == 16_000
     assert "cache_control" not in without_tools
-    assert without_tools["system"] == system
+    assert without_tools["system"] == [
+        {"type": "text", "text": "Be brief.", "cache_control": {"type": "ephemeral"}}
+    ]
     assert "tools" not in without_tools
 
 
@@ -74,24 +79,41 @@ def test_the_settings_that_bound_what_a_request_costs():
 
 def test_an_api_error_comes_back_as_text(replay):
     replay.always(400, {"error": "bad request"})
+    refused = 'The Anthropic API returned 400: {"error": "bad request"}'
 
     with pytest.raises(model.ModelError) as error:
-        model.create_message("m", "s", [HumanMessage("Hi.")], [])
+        model.structured("m", "s", "Hi.", Judged)
 
-    assert str(error.value) == 'The Anthropic API returned 400: {"error": "bad request"}'
+    assert str(error.value) == refused
+    assert agent_works().held_reason == refused
 
 
 def test_a_503_is_sent_again_and_a_504_is_not(replay):
-    for status, sent in [(503, 2), (504, 1)]:
-        replies = iter([(status, {}), (200, end_turn("Done."))])
-        replay.respond(lambda _body, replies=replies: next(replies))
-
-        before = len(replay.requests)
-
+    def asked() -> None:
         with contextlib.suppress(model.ModelError):
-            model.create_message("m", "s", [HumanMessage("Hi.")], [])
+            model.structured("m", "s", "Hi.", Judged)
 
-        assert len(replay.requests) - before == sent
+    for ask, last in [(asked, json_text(FITS)), (agent_works, tool_use("file_proposal", FILED))]:
+        for status, sent in [(503, 2), (504, 1)]:
+            replies = iter([(status, {}), (200, last)])
+            replay.respond(lambda _body, replies=replies: next(replies))
+            before = len(replay.requests)
+
+            ask()
+
+            assert len(replay.requests) - before == sent
+
+
+def test_a_request_that_keeps_failing_is_sent_four_times_and_no_more(replay):
+    replay.always(529, {"error": "overloaded"})
+
+    held = agent_works()
+
+    with pytest.raises(model.ModelError):
+        model.structured("m", "s", "Hi.", Judged)
+
+    assert held.held_reason == 'The Anthropic API returned 529: {"error": "overloaded"}'
+    assert len(replay.requests) == 2 * (model.MAX_RETRIES + 1)
 
 
 def test_the_text_of_a_response_leaves_out_thinking_and_tool_use_blocks():
@@ -145,3 +167,16 @@ def connection_error(cause: Exception) -> anthropic.APIConnectionError:
     error.__cause__ = cause
 
     return error
+
+
+def agent_works() -> Worked:
+    """One HR agent run on a short question."""
+    handoff = Handoff("How many leave days?", "a question", "nothing yet", None)
+    context = Context(
+        today=date(2026, 11, 24),
+        models=settings["models"],
+        request_id="R-1",
+        playbook="policy_question",
+    )
+
+    return department.run(handoff, context)

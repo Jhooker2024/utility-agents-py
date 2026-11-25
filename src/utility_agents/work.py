@@ -45,7 +45,6 @@ class Context:
     message: str = ""
     customer_id: str | None = None
     mode: str = "propose"
-    consults_left: int = 0
 
 
 @dataclass(frozen=True)

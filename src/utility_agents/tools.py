@@ -2,11 +2,13 @@
 
 Every definition is a strict schema, so the API checks the arguments before a tool runs. A
 `ToolError` goes back to the model, so its text says what to send instead. `department` decides
-which tools an agent is offered.
+which tools an agent is offered, and `as_langchain` hands them to LangChain.
 """
 
 from collections.abc import Callable
 from typing import NamedTuple
+
+from langchain_core.tools import StructuredTool
 
 from utility_agents import proposal, records, tool_text, verifier
 from utility_agents.schema import strict_object
@@ -17,6 +19,9 @@ class ToolError(Exception):
     """A tool could not do what the model asked; the text goes back to the model."""
 
 
+FILED = "Filed."
+
+
 class Tool(NamedTuple):
     name: str
     description: str
@@ -24,27 +29,39 @@ class Tool(NamedTuple):
     call: Callable[[dict, Context], object]
 
 
-def definitions(offered: list[Tool], context: Context) -> list[dict]:
-    return [
-        {
-            "name": tool.name,
-            "description": tool.description,
-            "input_schema": tool.input_schema(context),
-            "strict": True,
-        }
-        for tool in offered
-    ]
+def definition(tool: Tool, context: Context) -> dict:
+    """A tool as the model API takes it: a strict schema, so the API checks the arguments."""
+    return {
+        "name": tool.name,
+        "description": tool.description,
+        "input_schema": tool.input_schema(context),
+        "strict": True,
+    }
 
 
-def call(offered: list[Tool], name: str, arguments: dict, context: Context) -> object:
-    """Runs the tool the model named: the text it reads back, or for `file_proposal` the
-    proposal."""
-    tool = next((tool for tool in offered if tool.name == name), None)
+def as_langchain(tool: Tool, context: Context) -> StructuredTool:
+    """A tool as LangChain runs it for `context`. The model is sent our own definition:
+    LangChain's strict conversion would mark every property required, and `list_records`
+    takes an optional customer. A filed proposal travels as the tool message's artifact."""
 
-    if tool is None:
-        raise ToolError(f"Unknown tool {name}.")
+    def run(**arguments: object) -> tuple[str, object]:
+        result = tool.call(arguments, context)
 
-    return tool.call(arguments, context)
+        if isinstance(result, proposal.Proposal):
+            return FILED, result
+
+        return str(result), None
+
+    described = definition(tool, context)
+
+    return StructuredTool.from_function(
+        func=run,
+        name=tool.name,
+        description=tool.description,
+        args_schema=described["input_schema"],
+        response_format="content_and_artifact",
+        extras={"provider_tool_definition": described},
+    )
 
 
 def read_tools(department: str) -> list[Tool]:

@@ -92,13 +92,19 @@ The deck runs on AWS Bedrock; this example calls the Anthropic API directly.
   error it can fix. Flags work the same way: the concerns a message raises are a fixed list the
   model fills, and code acts on them. The code has no regex and no confidence score: holds come
   from structured facts only.
-- **LangChain for the model calls, a plain loop for the agent.** Every call goes through
-  `ChatAnthropic`: `bind_tools(..., tool_choice="auto", strict=True, parallel_tool_calls=False)`
-  for the agent and `with_structured_output(..., method="json_schema")` for the front door and
-  the two judges. Sonnet 5.5 rejects a forced tool choice, which LangChain's default structured
-  output uses, so the default is not an option. The loop that runs the tools is one short
-  function and not a prebuilt agent, because its rules are the product: one consult, one
-  correction, eight turns, then a person.
+- **LangChain 1.0 as it is meant to be used.** A department agent is `create_agent` from the
+  `langchain` package, and what bounds it is middleware: `ModelCallLimitMiddleware` (eight
+  model requests, then a person), `ModelRetryMiddleware` (our retry rule),
+  `AnthropicPromptCachingMiddleware`, `ToolErrorMiddleware` (a tool error goes back to the
+  model as something it can fix), and two small ones of our own: the filing rules (stop when
+  the proposal is filed, one correction, one nudge) and a recorder for the trace and the
+  cost. The front door and the two judges use `with_structured_output(...,
+  method="json_schema")` with a Pydantic model. Sonnet 5.5 rejects a forced tool choice,
+  which LangChain's default structured output uses, so that default is not an option.
+- **Our tool definitions, not LangChain's conversion.** The tools run as LangChain tools, but
+  the model is sent the strict schema generated from our Pydantic models. LangChain's strict
+  conversion marks every property required, which would force a transfer on every proposal
+  and a customer on every list.
 - **Proposals, not actions.** Nothing is sent and no CRM record is written. The gate's outcome
   (`held`, `one_click`, `automatic`) is logged; acting on it is the next integration.
 - **Checks in code first.** Every ID exists in the department's records. Each reading and the
@@ -107,9 +113,10 @@ The deck runs on AWS Bedrock; this example calls the Anthropic API directly.
   who asks. Each commitment names its words and its source (the message or a record ID), and
   code finds them in the draft and the source. The judge only answers "does this fit the
   message" and never sees the playbook.
-- **Our own retries.** The Anthropic SDK also retries a reply that timed out and a gateway
-  timeout. The API may still finish and bill such a request, so `model.py` turns the SDK's
-  retries off and retries only what was never worked.
+- **One retry rule.** The Anthropic SDK also retries a reply that timed out and a gateway
+  timeout. The API may still finish and bill such a request, so the SDK's retries are off and
+  `model.retry` allows only what was never worked. The agent's retry middleware and the
+  structured answers use the same rule and the same cap.
 - **Three JSON lines files, no database.** Trace, decisions and notifications are append-only.
   The daily cap and breaches are derived from them.
 - **One model per role in config.** Departments run on Sonnet; the front door and the judges on
@@ -124,10 +131,10 @@ request ─► chief_of_staff ─► department ─► (transfer?) ─► verifi
 - `chief_of_staff` routes mapped channels (billing portal, field app, HR portal) by config with
   no model call. For free text such as email, a model only decides whether it is for billing;
   anything else goes to a person, and the same answer names the message's concerns.
-- `department` runs the agent loop with its playbook, its read tools (`find_customer`,
-  `get_record`, `list_records`), `ask_department` and `file_proposal`. At most 8 model requests
-  and 1 consult. A proposal that names another department in `transfer_to` is handed over once;
-  a field report is never handed over.
+- `department` builds the agent with `create_agent`: its playbook, its read tools
+  (`find_customer`, `get_record`, `list_records`), `ask_department` and `file_proposal`. At
+  most 8 model requests and 1 consult. A proposal that names another department in
+  `transfer_to` is handed over once; a field report is never handed over.
 - `gate`: crawl holds everything, walk lets a CRM update act alone and makes replies one click,
   run acts alone. Today field reports are at walk, invoice disputes at crawl (and never act
   alone) and HR questions at run. Needs attention, a failed check or any flag holds; a
@@ -149,7 +156,9 @@ model.
 - `tests/test_golden.py` compares every request body the system sends and every text a person
   sees with `tests/golden/golden.json`. The file was recorded by the Elixir version this code was
   ported from; the port passed it unchanged before any fix was made (commit `6664355`). It is
-  recorded again only after a change meant to alter what is sent.
+  recorded again only after a change meant to alter what is sent. Against that first
+  recording, today's requests differ in the fixes listed in the playbooks' Changes sections,
+  and in the caching marker, which now states its five-minute lifetime.
 - `tests/test_regressions.py` has one test for each problem the last live run showed, named
   after the problem.
 - `tests/test_seed_data.py` checks that every customer has bills and meter usage the tools can
@@ -165,7 +174,9 @@ agent must say so and not guess) and ambiguous (it must not pick one meaning). A
 at 80% in each group with nothing unsafe. The run's logs are deleted afterwards; the printed
 report is the record.
 
-Live checks on this version, 2026-11-25:
+Live checks, 2026-11-25. Both ran before the agent moved from a hand-written loop to
+`create_agent` (commit `f4c3daa`). The golden test shows the rebuilt agent sends the same
+prompts, tools and messages; it has not been run live yet.
 
 - **Six messages typed into the real terminal app**, the way a person types them (lower case,
   typos, no IDs): two billing messages with no email, two HR questions and two field reports.

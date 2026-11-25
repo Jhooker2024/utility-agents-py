@@ -20,10 +20,9 @@ reason it fails.
 Text is compared lowercased with runs of whitespace as one space.
 """
 
-import json
 from datetime import date
 
-from utility_agents import model, prompts, records
+from utility_agents import json_lines, model, prompts, records, tool_text
 from utility_agents.proposal import Commitment, FieldReport, InvoiceDispute, Proposal
 from utility_agents.text import day, decimals, figure, grouped
 from utility_agents.work import Context, Request, Worked
@@ -102,9 +101,7 @@ def sense(proposal: Proposal, message: str, judge: str, today: date) -> Check:
 def proposal_json(proposal: dict | None) -> str:
     """A proposal as the JSON a judge reads, with `<` and `/` escaped so text inside it cannot
     close the proposal tags."""
-    text = json.dumps(proposal, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
-
-    return text.replace("<", "\\u003C").replace("/", "\\/")
+    return json_lines.compact(proposal).replace("<", "\\u003C").replace("/", "\\/")
 
 
 def _unmatched_ids(proposal: Proposal) -> list[str]:
@@ -274,14 +271,12 @@ def _facts(collection: str, record: dict) -> list[tuple[str, object]]:
     if collection != "invoices":
         return list(record.items())
 
-    customer = records.lookup("billing", "customers", record["customer_id"]) or {}
-    tariff = records.lookup("billing", "tariffs", customer.get("tariff")) or {}
-    usage = records.lookup("billing", "usage", record["customer_id"]) or {}
+    shown = tool_text.invoice_facts(record)
 
     return [
         *record.items(),
-        ("price_per_kwh_eur", tariff.get("price_per_kwh_eur")),
-        ("metered", (usage.get("months") or {}).get(record["period"])),
+        ("price_per_kwh_eur", shown["tariff"]["price_per_kwh_eur"]),
+        ("metered_kwh", shown["metered_kwh"]),
     ]
 
 

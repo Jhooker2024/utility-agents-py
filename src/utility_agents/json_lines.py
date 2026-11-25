@@ -9,6 +9,12 @@ def encode(entry: object) -> str:
     return json.dumps(entry, ensure_ascii=False, default=str)
 
 
+def compact(value: object) -> str:
+    """A value as JSON on one line with its keys in order, so the same value always reads
+    the same."""
+    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+
+
 def append(path: Path, entries: list[dict]) -> None:
     if not entries:
         return

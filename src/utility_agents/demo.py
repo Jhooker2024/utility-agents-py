@@ -10,7 +10,7 @@ from pathlib import Path
 
 from utility_agents import gate, request_path, trace
 from utility_agents.config import settings
-from utility_agents.presenter import describe, steps, wrap
+from utility_agents.presenter import WIDTH, describe, steps, wrap
 from utility_agents.text import words
 
 SCENES = [
@@ -45,7 +45,7 @@ SCENES = [
         "nothing unconfirmed, and goes out alone.",
     ),
 ]
-RULE = "-" * 78
+RULE = "-" * WIDTH
 COLOR_START = "\x1b["
 
 

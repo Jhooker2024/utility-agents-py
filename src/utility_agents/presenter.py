@@ -4,13 +4,12 @@ could not confirm, the three checks, its steps, the cost and time. `steps` is th
 for a technical reader.
 """
 
-import json
 import os
 import sys
 from collections.abc import Callable, Iterable
 from datetime import date
 
-from utility_agents import proposal, records, usage
+from utility_agents import json_lines, proposal, records, usage
 from utility_agents.notifications import BILLING_FOLLOW_UPS
 from utility_agents.text import day, decimals, grouped, month, rounded, words
 
@@ -427,6 +426,4 @@ def _trace_input(entry: dict) -> str:
     if entry["step"] == "file_proposal" or "input" not in entry:
         return ""
 
-    text = json.dumps(entry["input"], sort_keys=True, separators=(",", ":"), ensure_ascii=False)
-
-    return " " + text[:90]
+    return " " + json_lines.compact(entry["input"])[:90]

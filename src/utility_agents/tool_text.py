@@ -146,28 +146,33 @@ def _twice(invoice: dict) -> str:
     return f", BILLED TWICE (also {', '.join(others)})" if others else ""
 
 
-def _metered(invoice: dict) -> str:
-    recorded = [
-        usage["months"][invoice["period"]]
-        for usage in list_records("billing", "usage", invoice["customer_id"])
-        if (usage.get("months") or {}).get(invoice["period"]) is not None
-    ]
+def invoice_facts(invoice: dict) -> dict:
+    """What an invoice row shows from other records: the tariff record with the customer's
+    price per kWh, and the kWh the customer's usage record holds for the invoiced month. The
+    fact check accepts the same facts with the invoice as their source."""
+    customer = lookup("billing", "customers", invoice["customer_id"])
+    usage = lookup("billing", "usage", invoice["customer_id"]) or {}
 
-    if len(recorded) != 1:
+    return {
+        "tariff": lookup("billing", "tariffs", customer["tariff"]),
+        "metered_kwh": (usage.get("months") or {}).get(invoice["period"]),
+    }
+
+
+def _metered(invoice: dict) -> str:
+    metered = invoice_facts(invoice)["metered_kwh"]
+
+    if metered is None:
         return ", no meter usage on record"
 
-    if recorded[0] == invoice["kwh_billed"]:
+    if metered == invoice["kwh_billed"]:
         return f", the meter recorded the same (usage record {invoice['customer_id']})"
 
-    return (
-        f", NOT WHAT THE METER RECORDED ({recorded[0]} kWh in usage record "
-        f"{invoice['customer_id']})"
-    )
+    return f", NOT WHAT THE METER RECORDED ({metered} kWh in usage record {invoice['customer_id']})"
 
 
 def _priced(invoice: dict) -> str:
-    customer = lookup("billing", "customers", invoice["customer_id"])
-    tariff = lookup("billing", "tariffs", customer["tariff"])
+    tariff = invoice_facts(invoice)["tariff"]
     expected = round(invoice["kwh_billed"] * tariff["price_per_kwh_eur"], 2)
     rate = decimals(tariff["price_per_kwh_eur"], 2)
     price = f"€{rate} per kWh, the price in tariff record {tariff['id']}"

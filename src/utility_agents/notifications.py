@@ -41,15 +41,13 @@ def build(request_id: str, raised: list[flags.Flag], proposal: Proposal | None) 
     return [{"to": team, "text": " ".join(told)} for team, told in texts.items()]
 
 
-def deliver(directory: str | Path, request_id: str, notifications: list[dict]) -> list[dict]:
-    """Writes the notifications a team has not had for this request yet; returns them all."""
+def deliver(directory: str | Path, request_id: str, notifications: list[dict]) -> None:
+    """Writes the notifications a team has not had for this request yet."""
     path = Path(directory) / FILE_NAME
     sent = {entry["to"] for entry in json_lines.read(path) if entry["request_id"] == request_id}
     new = [notification for notification in notifications if notification["to"] not in sent]
 
     json_lines.append(path, [{**notification, "request_id": request_id} for notification in new])
-
-    return notifications
 
 
 def _team(flag: str, proposal: Proposal | None) -> str | None:

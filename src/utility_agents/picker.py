@@ -36,7 +36,7 @@ def _pick_by_number(options: Options) -> object:
         print(_line(label, index, selected=False))
 
     while True:
-        typed = _read_line("> ").strip()
+        typed = read_line("> ").strip()
 
         if typed.isascii() and typed.isdecimal() and 1 <= int(typed) <= len(options):
             return options[int(typed) - 1][0]
@@ -44,7 +44,8 @@ def _pick_by_number(options: Options) -> object:
         print("Type a number from the list.")
 
 
-def _read_line(prompt: str) -> str:
+def read_line(prompt: str) -> str:
+    """One typed line. The end of the input ends the program, as Ctrl-D does."""
     try:
         return input(prompt)
     except EOFError:

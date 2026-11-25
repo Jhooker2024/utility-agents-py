@@ -29,6 +29,20 @@ repository. Update this file at every milestone.
   R-429 still fails (the usage record shows 287 kWh for October, the label says the records
   cannot settle whether the meter was read).
 
+## The agent on LangChain 1.0 (2026-11-25, Justin's decision)
+
+- `department.py` now builds the agent with `langchain.agents.create_agent` and middleware
+  (call limit, retry, Anthropic prompt caching, tool errors, plus our `ProposalRules`,
+  `OneStrictToolCall` and `Recorder`). `model.py` keeps `chat` and `structured`.
+- All department, request path and eval tests passed unchanged. Three model tests were
+  rewritten because `model.create_message` is gone; they now cover both paths.
+- The golden diff against the hand-written loop: only `"ttl": "5m"` in the two caching
+  markers of the three department requests.
+- The four clean-up reviewers' findings were applied where they kept behaviour. Skipped:
+  one pool for all playbooks' eval trials, lazy imports, caching the chat client, reading
+  `decisions.jsonl` once per request, one shared ownership check, and scoping reads by
+  customer at the tool layer (a behaviour change: see Open).
+
 ## Next
 
 - Justin decided on 2026-11-25: leave R-429 failing, and no full eval for now. The full eval
@@ -67,3 +81,8 @@ repository. Update this file at every milestone.
 ## Open
 
 - Done-criterion 5 (full eval at 80% in every group, 0 unsafe) is not measured on this version.
+- The six typed messages and the 13 cases ran live before the move to `create_agent`. They
+  have not been repeated on the rebuilt agent. Ask before running them (about $0.10 and $0.18).
+- The agent can still read another customer's invoice with its read tools. The fact check
+  stops it from naming that invoice in the proposal's fields, but no code reads the draft's
+  prose. Scoping reads to the asking customer at the tool layer would close it.

@@ -28,12 +28,21 @@ from datetime import date
 from itertools import groupby
 from pathlib import Path
 
-from utility_agents import decisions, flags, judge, proposal, records, request_path, trace, usage
+from utility_agents import (
+    decisions,
+    flags,
+    judge,
+    notifications,
+    proposal,
+    records,
+    request_path,
+    trace,
+    usage,
+)
 from utility_agents.config import settings
 from utility_agents.text import rounded, words
 from utility_agents.verifier import Check
 
-BILLING = "Billing"
 DEFAULT_GROUP = "answerable"
 
 
@@ -47,6 +56,10 @@ class Result:
     decision: dict
     outcome: Check
     cost: float | None
+
+    @property
+    def passed(self) -> bool:
+        return self.outcome is None
 
 
 @dataclass(frozen=True)
@@ -117,7 +130,7 @@ def report(run: Run) -> str:
         list(trials)
         for _id, trials in groupby(ordered, key=lambda result: result.label["request_id"])
     ]
-    passed_every_run = sum(all(trial.outcome is None for trial in trials) for trials in cases)
+    passed_every_run = sum(all(trial.passed for trial in trials) for trials in cases)
     summary = [
         "",
         f"Playbook {run.playbook}: {len(results)} runs of {len(cases)} cases",
@@ -192,7 +205,7 @@ def _billing_untold(label: dict, decision: dict) -> list[str]:
     teams = [notification["to"] for notification in decision.get("notifications") or []]
     follow_up = label["fields"].get("billing_follow_up")
 
-    if follow_up not in (None, "none") and BILLING not in teams:
+    if follow_up not in (None, "none") and notifications.BILLING not in teams:
         return ["billing was not told about the billing follow-up"]
 
     return []
@@ -247,13 +260,17 @@ def _groups(results: list[Result]) -> dict[str, list[Result]]:
 def _result_line(result: Result) -> str:
     case_name = f"{result.label['request_id']} run {result.run}"
     decided = words(result.decision["outcome"])
-    outcome = "pass" if result.outcome is None else f"FAIL: {result.outcome}"
+    outcome = "pass" if result.passed else f"FAIL: {result.outcome}"
 
     return f"{case_name:<16} {decided:<10} {outcome}"
 
 
+def _passes(results: list[Result]) -> int:
+    return sum(result.passed for result in results)
+
+
 def _pass_share(results: list[Result]) -> float:
-    return sum(result.outcome is None for result in results) / len(results)
+    return _passes(results) / len(results)
 
 
 def _recommend(stage: str, run: Run) -> str:
@@ -270,9 +287,7 @@ def _share(results: list[Result]) -> str:
     if not results:
         return "0/0"
 
-    passes = sum(result.outcome is None for result in results)
-
-    return f"{passes}/{len(results)} ({_percent(passes / len(results))})"
+    return f"{_passes(results)}/{len(results)} ({_percent(_pass_share(results))})"
 
 
 def _cost_line(results: list[Result]) -> str:

@@ -21,7 +21,6 @@ import argparse
 import json
 import os
 import sys
-from datetime import UTC, datetime
 from pathlib import Path
 
 from utility_agents import chat, decisions, demo, evaluation, proposal, request_path
@@ -87,7 +86,7 @@ def _decide(request_id: str) -> Outcome:
 
 
 def _review(request_id: str, action: str, arguments: list[str]) -> Outcome:
-    options = _parse(arguments, kind=str, field=[])
+    options = _parse(arguments, kind=str, field=list)
 
     if options is None or action not in decisions.ACTIONS or options.kind not in proposal.KINDS:
         return "error", USAGE
@@ -101,7 +100,7 @@ def _review(request_id: str, action: str, arguments: list[str]) -> Outcome:
         "action": action,
         "kind": options.kind,
         "fields": {name: value for name, _separator, value in pairs},
-        "date": datetime.now(UTC).date(),
+        "date": request_path.utc_today(),
     }
 
     try:
@@ -128,13 +127,13 @@ def _eval(arguments: list[str]) -> Outcome:
     return ("ok" if all(map(evaluation.passed, evaluated)) else "failed"), report
 
 
-# The options a command takes, or None when an argument is not one of them. An option given
-# a list may be repeated.
-def _parse(arguments: list[str], **switches: type | list) -> argparse.Namespace | None:
+# The options a command takes, or None when an argument is not one of them. An option of
+# type list may be repeated.
+def _parse(arguments: list[str], **switches: type) -> argparse.Namespace | None:
     parser = argparse.ArgumentParser(add_help=False, exit_on_error=False, allow_abbrev=False)
 
     for name, kind in switches.items():
-        if kind == []:
+        if kind is list:
             parser.add_argument(f"--{name}", action="append", default=[])
         else:
             parser.add_argument(f"--{name}", type=kind)

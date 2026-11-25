@@ -11,13 +11,13 @@ not in any department's scope.
 
 import json
 import unicodedata
+from string import digits as DIGITS
 from typing import NamedTuple
 
 from utility_agents.config import PACKAGE
 
 COLLECTIONS = ("customers", "assets", "invoices", "usage", "tariffs", "policies", "requests")
 SEARCH_LIMIT = 5
-DIGITS = "0123456789"
 REPORT_FIELDS = ("customer_id", "asset_id")
 CUSTOMER_FIELDS = {
     "customers": "id",

@@ -9,11 +9,9 @@ the checks and steps, or approves, edits or rejects a draft, recorded as a staff
 demo and the evals run from the same menu.
 """
 
-from datetime import UTC, datetime
-
 from utility_agents import decisions, demo, evaluation, proposal, records, request_path, trace
 from utility_agents.config import settings
-from utility_agents.picker import pick
+from utility_agents.picker import pick, read_line
 from utility_agents.presenter import clear, details, paint, summary, terminal
 from utility_agents.text import words
 
@@ -204,7 +202,7 @@ def _record_review(action: str, decision: dict) -> None:
     else:
         kind = decision["proposal"]["kind"]
 
-    review = {"action": action, "kind": kind, "fields": {}, "date": datetime.now(UTC).date()}
+    review = {"action": action, "kind": kind, "fields": {}, "date": request_path.utc_today()}
 
     try:
         decisions.review(settings["log_directory"], decision["request_id"], review)
@@ -228,7 +226,4 @@ def _required(prompt: str) -> str:
 
 
 def _answer(prompt: str) -> str:
-    try:
-        return input(paint(prompt, "yellow")).strip()
-    except EOFError:
-        raise SystemExit(0) from None
+    return read_line(paint(prompt, "yellow")).strip()

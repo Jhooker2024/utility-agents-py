@@ -8,13 +8,12 @@ validation cannot drift apart. `new` validates the agent's input and returns the
 raises `Invalid` with every problem as one message the agent can act on.
 """
 
-import json
 from datetime import date
-from typing import Literal, NamedTuple
+from typing import Literal, NamedTuple, get_args
 
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
-from utility_agents import flags, records, schema
+from utility_agents import flags, json_lines, records, schema
 
 Department = Literal["billing", "field_operations", "hr"]
 Kind = Literal["reply", "record_update", "needs_attention"]
@@ -115,8 +114,8 @@ PLAYBOOKS = {
     "invoice_dispute": Playbook("billing", InvoiceDispute, ("reply", "needs_attention")),
     "policy_question": Playbook("hr", PolicyQuestion, ("reply", "needs_attention")),
 }
-DEPARTMENTS = ("billing", "field_operations", "hr")
-KINDS = ("reply", "record_update", "needs_attention")
+DEPARTMENTS = get_args(Department)
+KINDS = get_args(Kind)
 # A record update must say what it updates and when; a proposal for a person may leave them
 # open.
 NEEDED_TO_UPDATE = {("field_report", "record_update"): (*records.REPORT_FIELDS, "visit_date")}
@@ -179,9 +178,7 @@ def new(filed: dict, request_id: str, department: str, playbook: str) -> Proposa
         problems["fields"] = field_problems
 
     if problems:
-        listed = json.dumps(problems, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
-
-        raise Invalid("The proposal is invalid: " + listed)
+        raise Invalid("The proposal is invalid: " + json_lines.compact(problems))
 
     return Proposal(
         request_id=request_id,

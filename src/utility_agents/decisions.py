@@ -70,12 +70,16 @@ def stage(
 
 def lower(stage: str) -> str:
     """One stage lower: run to walk, walk to crawl; crawl stays crawl."""
-    return STAGES[max(STAGES.index(stage) - 1, 0)]
+    return _moved(stage, -1)
 
 
 def higher(stage: str) -> str:
     """One stage higher: crawl to walk, walk to run; run stays run."""
-    return STAGES[min(STAGES.index(stage) + 1, len(STAGES) - 1)]
+    return _moved(stage, 1)
+
+
+def _moved(stage: str, steps: int) -> str:
+    return STAGES[min(max(STAGES.index(stage) + steps, 0), len(STAGES) - 1)]
 
 
 def _breached(directory: str | Path, playbook: str | None, today: date) -> bool:
