@@ -567,3 +567,27 @@ def test_the_environment_file_takes_quotes_and_export_and_never_overrides_the_sh
         None,
         "shell",
     ]
+
+
+def test_every_customer_a_report_could_mean_is_on_record_and_the_agent_is_told_to_search(replay):
+    unnamed = {"customer_id": None, "possible_customer_ids": ["C-1002", "C-9999"], "readings": []}
+    filed = {**field_report(fields=unnamed), "kind": "needs_attention"}
+    listed = new(filed, "F-1", "field_operations", "field_report")
+    schema = json_schema("field_report")["properties"]["fields"]
+
+    replay.sequence([tool_use("file_proposal", field_report())])
+    department.run(
+        Handoff("Kerkstraat.", "a field report", "nothing", None), working("field_report")
+    )
+    [playbook] = replay.requests[0]["system"]
+
+    assert verifier.grounded(listed, "A-2002, all fine, 19-11-2026.", TODAY) == (
+        "The report does not identify the customer. Possible customer C-9999 is not in the records."
+    )
+    assert list(schema["properties"])[:2] == ["customer_id", "possible_customer_ids"]
+    assert schema["properties"]["possible_customer_ids"] == {
+        "type": "array",
+        "items": {"type": "string"},
+    }
+    assert "Always search with find_customer" in playbook["text"]
+    assert "put in possible_customer_ids the ID of every customer" in playbook["text"]

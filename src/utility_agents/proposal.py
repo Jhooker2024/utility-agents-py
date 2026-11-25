@@ -60,6 +60,7 @@ class Reading(Entry):
 
 class FieldReport(Entry):
     customer_id: str | None = None
+    possible_customer_ids: list[str] = []
     asset_id: str | None = None
     visit_date: date | None = None
     visit_date_quote: str | None = None

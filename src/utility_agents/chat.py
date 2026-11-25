@@ -1,18 +1,20 @@
 """The interactive front end: run `utility-agents` with no arguments.
 
 Three kinds of request, each typed in your own words: an HR question, a customer's message
-about a bill, and a field report. HR and billing show what people can ask about first. A field
-report that does not say which customer or meter it is about asks for them at the end and runs
-again with them. Every request goes through `request_path.handle`, the same path as the command
-line, and shows the outcome, the draft or CRM update and why. A "What next?" list then shows
-the checks and steps, or approves, edits or rejects a draft, recorded as a staff review. The
-demo and the evals run from the same menu.
+about a bill, and a field report. HR and billing show what people can ask about first. Enter on
+an empty line goes back to the menu. A field report that does not say which customer or meter
+it is about asks for them once: it offers the customers the agent found that the report could
+mean and that customer's meters and cables, and "I don't know" always leaves it for a person.
+It then runs once more with the answers and asks nothing further. Every request goes through
+`request_path.handle`, the same path as the command line, and shows the outcome, the draft or
+CRM update and why. A "What next?" list then shows the checks and steps, or approves, edits or
+rejects a draft, recorded as a staff review. The demo and the evals run from the same menu.
 """
 
 from utility_agents import decisions, demo, evaluation, proposal, records, request_path, trace
 from utility_agents.config import settings
 from utility_agents.picker import pick, read_line
-from utility_agents.presenter import clear, details, paint, summary, terminal
+from utility_agents.presenter import clear, details, field_text, paint, summary, terminal
 from utility_agents.text import words
 
 MENU = [
@@ -35,10 +37,12 @@ EVALS = [
     ("invoice_dispute", "Billing"),
     ("field_report", "Field reports"),
 ]
-MISSING_QUESTIONS = {
-    "customer": "Which customer was it? A name and street: ",
-    "meter": "Which meter was it? The meter number: ",
-}
+GO_BACK = " (or press Enter to go back) "
+ASK_CUSTOMER = "Which customer was it? A name and street (press Enter if you don't know): "
+ASK_METER = "Which meter was it? The meter number (press Enter if you don't know): "
+SOMEONE_ELSE = "Someone else: type a name and street"
+NOT_KNOWN = "I don't know: leave it for a person"
+OTHER = "other"
 
 
 def start() -> None:
@@ -68,7 +72,7 @@ def _hr() -> None:
 
     clear()
     print(_topics("HR", "An employee can ask about these policies:", policies))
-    _submit("hr_portal", _required("What does the employee ask? "), None)
+    _submit("hr_portal", _answer("What does the employee ask?" + GO_BACK), None)
 
 
 def _billing() -> None:
@@ -82,9 +86,8 @@ def _billing() -> None:
     else:
         print(f"From {customer['name']} ({customer['id']}), known by their email address.")
 
-    _submit(
-        "billing_portal", _required("What does the customer write? "), customer and customer["id"]
-    )
+    message = _answer("What does the customer write?" + GO_BACK)
+    _submit("billing_portal", message, customer and customer["id"])
 
 
 def _field_report() -> None:
@@ -94,7 +97,7 @@ def _field_report() -> None:
         "Write what happened on the visit: who it was for (a name and street, or a meter\n"
         "number), what you found and did, any readings, and anything still to do.\n"
     )
-    _submit("field_app", _required("Report: "), None)
+    _submit("field_app", _answer("Report" + GO_BACK), None)
 
 
 def _demo() -> None:
@@ -117,31 +120,97 @@ def _topics(heading: str, intro: str, topics: list[str]) -> str:
     return "\n".join([paint(heading, "bright"), intro, *("  - " + topic for topic in topics), ""])
 
 
+# A message of nothing goes back to the menu. A field report with something missing is asked
+# about once and runs once more with the answers: the second result goes to a person as it
+# is, so a report never loops.
 def _submit(channel: str, message: str, customer_id: str | None) -> None:
+    if message == "":
+        return
+
+    decision = _decided(channel, message, customer_id)
+    added = _added(decision)
+
+    if added:
+        message = f"{message}\nAdded by the technician: {'; '.join(added)}"
+        decision = _decided("field_app", message, None)
+
+    _next(decision, message)
+
+
+def _decided(channel: str, message: str, customer_id: str | None) -> dict:
     clear()
     print("\n" + paint(message, "yellow") + "\n\nWorking on it...\n")
 
     decision = request_path.handle(request_path.new_request(channel, message, customer_id))
     print(summary(decision))
-    names = _missing(decision)
 
-    if names:
-        _complete(names, decision, message)
-    else:
-        _next(decision, message)
+    return decision
 
 
-# A field report that does not say which customer or meter it is about asks for them, then
-# runs again with them. Enter leaves them for a person.
-def _complete(names: list[str], decision: dict, message: str) -> None:
-    print(paint(f"The report does not say which {' or '.join(names)} it was.", "yellow"))
-    asked = [(name, _answer(MISSING_QUESTIONS[name])) for name in names]
-    added = [f"{name} {given}" for name, given in asked if given != ""]
+def _added(decision: dict) -> list[str]:
+    """What the technician adds to a field report that does not say which customer or meter
+    it was; nothing when they do not know either."""
+    missing = _missing(decision)
 
-    if added:
-        _submit("field_app", message + "\nAdded by the technician: " + "; ".join(added), None)
-    else:
-        _next(decision, message)
+    if not missing:
+        return []
+
+    print(paint(f"The report does not say which {' or '.join(missing)} it was.", "yellow"))
+    fields = decision["proposal"]["fields"]
+    customer_id, customer = fields["customer_id"], []
+
+    if "customer" in missing:
+        customer_id, customer = _customer_asked(fields["possible_customer_ids"])
+
+    meter = _meter_asked(customer_id, "customer" in missing) if "meter" in missing else []
+
+    return [*customer, *meter]
+
+
+# The customers the agent found that the report could mean are offered by name. Returns the
+# ID picked, if one was, and what to add to the report.
+def _customer_asked(possible: list[str]) -> tuple[str | None, list[str]]:
+    found = [
+        customer_id
+        for customer_id in possible
+        if records.known("field_operations", "customers", customer_id)
+    ]
+    offered = [(customer_id, field_text("customer_id", customer_id)) for customer_id in found]
+    choice = OTHER
+
+    if offered:
+        choice = pick(
+            "Which customer was it?", [*offered, (OTHER, SOMEONE_ELSE), (None, NOT_KNOWN)]
+        )
+
+    if choice is None:
+        return None, []
+
+    if choice == OTHER:
+        typed = _answer(ASK_CUSTOMER)
+
+        return None, [f"customer {typed}"] if typed else []
+
+    return choice, [f"customer {field_text('customer_id', choice)}"]
+
+
+# A customer on record has their meters and cables offered. One just picked who has a single
+# asset is not asked: the agent takes that asset.
+def _meter_asked(customer_id: str | None, just_picked: bool) -> list[str]:
+    if not records.known("field_operations", "customers", customer_id):
+        typed = _answer(ASK_METER)
+
+        return [f"meter {typed}"] if typed else []
+
+    assets = records.list_records("field_operations", "assets", customer_id)
+
+    if just_picked and len(assets) == 1:
+        return []
+
+    offered = [(asset, field_text("asset_id", asset["id"])) for asset in assets]
+    asset = pick("Which meter or cable was it?", [*offered, (None, NOT_KNOWN)])
+
+    return [] if asset is None else [f"{words(asset['type'])} {asset['id']}"]
 
 
 # What can be done with this result: offered after every result until "Back to the menu".
@@ -215,14 +284,6 @@ def _record_review(action: str, decision: dict) -> None:
 def _pause() -> None:
     if terminal():
         _answer("\nPress Enter to go back to the menu. ")
-
-
-def _required(prompt: str) -> str:
-    while True:
-        text = _answer(prompt)
-
-        if text != "":
-            return text
 
 
 def _answer(prompt: str) -> str:

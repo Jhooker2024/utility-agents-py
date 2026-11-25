@@ -37,11 +37,13 @@ saved to `logs/demo-<time>/transcript.txt`.
 The menu offers HR, billing and a field report, each typed in your own words, plus the demo and
 the evals (one playbook or all three). HR lists the policies an employee can ask about. Billing
 lists what a customer can write about and asks for their email, which may be left empty. A field
-report that does not say which customer or meter it is about asks for them at the end and runs
-again with them. Each request shows first whether it goes ahead on its own, needs one click or
-waits for a person, then the draft or CRM update and why. A "What next?" list lets a person see
-the checks and steps, or approve, edit or reject the work. Each choice is recorded as a staff
-review. Set `NO_COLOR=1` for plain text.
+report that does not say which customer or meter it is about asks for them once. It offers
+the customers the agent found that the report could mean, by name, then that customer's meters
+and cables, and runs once more with the answers. "I don't know" leaves it for a person, and
+Enter on an empty line goes back to the menu. Each request shows first whether it goes ahead on
+its own, needs one click or waits for a person, then the draft or CRM update and why. A "What
+next?" list lets a person see the checks and steps, or approve, edit or reject the work. Each
+choice is recorded as a staff review. Set `NO_COLOR=1` for plain text.
 
 The same things work as single commands:
 
@@ -109,7 +111,9 @@ The deck runs on AWS Bedrock; this example calls the Anthropic API directly.
   (`held`, `one_click`, `automatic`) is logged; acting on it is the next integration.
 - **Checks in code first.** Every ID exists in the department's records. Each reading and the
   visit date carry the report's exact words, which must be in the report and hold that figure or
-  date. An invoice carries the customer's words that identify it and must belong to the customer
+  date. A report that names only a street lists the customers it could mean in a field of its
+  own, each checked against the records, and a person picks; nothing is guessed from the text.
+  An invoice carries the customer's words that identify it and must belong to the customer
   who asks. Each commitment names its words and its source (the message or a record ID). Code
   finds the words in the draft; from a record they must give one of its figures or dates and
   no figure the record does not hold. The judge only answers "does this fit the message" and
@@ -218,8 +222,9 @@ for the customer and the meter before it ran again.
 
 After that run a code review found ten problems, among them fact checks that let a wrong
 reading, a wrong year and an invented amount through. They are fixed, each with a test in
-`tests/test_regressions.py`. The fixes have not run live, so the numbers above are from before
-them.
+`tests/test_regressions.py`. The field report playbook also changed: a report that names only
+a street is now searched for. Neither change has run live, so the numbers above are from
+before them.
 
 The cases were seen while tuning; a fresh blind batch is the honest next measure.
 

@@ -130,6 +130,11 @@ def _field_report_problems(proposal: Proposal, message: str, today: date) -> lis
         for field, entry in records.report_fields().items()
         if getattr(fields, field) is None
     ]
+    strangers = [
+        f"Possible customer {customer_id} is not in the records."
+        for customer_id in fields.possible_customer_ids
+        if not records.known(proposal.department, "customers", customer_id)
+    ]
     readings = [
         f"Reading {figure(reading.value)} is not in the report as quoted."
         for reading in fields.readings
@@ -142,6 +147,7 @@ def _field_report_problems(proposal: Proposal, message: str, today: date) -> lis
 
     return [
         *unidentified,
+        *strangers,
         *_someone_elses_asset(fields),
         *readings,
         *_visit_date_problems(fields, message, today),

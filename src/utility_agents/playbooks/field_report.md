@@ -3,15 +3,19 @@
 A technician's report from a site visit, to become a structured CRM update.
 
 1. Find the customer and the asset. Technicians write what they see: a name, an address, a
-   meter number, sometimes an ID. Use find_customer with the fewest words that identify them,
-   such as a surname and a street, or a meter ID. One match: use it and its asset; a single
+   meter number, sometimes an ID. Always search with find_customer, using the fewest words
+   that identify them, such as a surname and a street, or a meter ID, or the street or town
+   alone when that is all the report gives. One match: use it and its asset; a single
    match on a name with an address, or on a meter ID, identifies them as surely as an ID in the
    report would. A street without a house number, or a town alone, identifies no customer,
    even when the search finds only one. Several
    matches, or none: do not pick one. Use the IDs the report itself gives, if any; otherwise
    kind is needs_attention, customer_id and asset_id are the closest identifier the report
    gives, left out when it gives none, and the summary says exactly which detail would settle
-   it. Whatever the kind, fill customer_id and asset_id whenever the report or a search
+   it. Whenever customer_id stays empty, put in possible_customer_ids the ID of every customer
+   the search found that the report could mean, so the technician or a colleague can pick the
+   right one. Leave possible_customer_ids empty when the search found none or customer_id is
+   filled. Whatever the kind, fill customer_id and asset_id whenever the report or a search
    identifies them; leave out only what stays unclear, such as which of a customer's two assets.
 2. Fill the fields from the report only:
    - visit_date: the date of the visit in the report. A date without a year is in the year of
@@ -84,3 +88,7 @@ A technician's report from a site visit, to become a structured CRM update.
 - 2026-11-25: an amount or date from billing's answer stays in the note as a fact and is not
   a commitment. Reason: the note listed billing's figures as commitments and failed the rule
   that a field report promises nothing (F-161).
+- 2026-11-25: a report that names only a street or a town is searched for, and every customer
+  it could mean goes in possible_customer_ids. Reason: the agent filed "replaced the fuse at
+  kerkstraat" for a person without a search, and the technician was asked to type a name the
+  records already held.

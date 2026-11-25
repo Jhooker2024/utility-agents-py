@@ -35,6 +35,7 @@ COLLECTIONS = {entry.collection: entry.name for entry in records.ID_FIELDS.value
 TOP_STEPS = ("chief_of_staff", "verifier", "gate")
 LABELS = {
     "customer_id": "Customer",
+    "possible_customer_ids": "Could be",
     "asset_id": "Equipment",
     "invoice_id": "Invoice",
     "invoice_quote": "Their words",
@@ -47,6 +48,7 @@ LABELS = {
 }
 FIELD_ORDER = (
     "customer_id",
+    "possible_customer_ids",
     "asset_id",
     "invoice_id",
     "invoice_quote",
@@ -249,7 +251,7 @@ def _field_lines(filed: dict) -> list[str]:
         for field, value in ranked
         if (value not in (None, []) or field in IDENTITY_FIELDS)
         and (field, value) != ("billing_follow_up", "none")
-        for line in _field_line(_label(field), _field_text(field, value))
+        for line in _field_line(_label(field), field_text(field, value))
     ]
 
 
@@ -265,9 +267,13 @@ def _label(field: str) -> str:
     return LABELS.get(field) or words(field).capitalize()
 
 
-def _field_text(field: str, value: object) -> str:
+def field_text(field: str, value: object) -> str:
+    """A proposal field's value as a person reads it: a record by its name with its ID."""
     if value is None:
         return "Not identified"
+
+    if field == "possible_customer_ids":
+        return "; ".join(field_text("customer_id", customer_id) for customer_id in value)
 
     if field == "customer_id":
         return _record_text(
