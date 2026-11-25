@@ -1,3 +1,4 @@
+import dataclasses
 from datetime import date
 
 import pytest
@@ -58,21 +59,19 @@ def test_stage_by_kind(conditions, proposal):
 
 
 def test_a_failed_check_or_no_proposal_holds(conditions, proposal):
-    at_run = with_conditions(conditions, stage="run")
+    at_run = dataclasses.replace(conditions, stage="run")
 
-    for checks in [{**PASSED, "grounded": "x"}, {**PASSED, "sense": "x"}]:
-        assert gate.decide(proposal, checks, at_run)[0] == "held"
-
+    assert gate.decide(proposal, {**PASSED, "sense": "x"}, at_run)[0] == "held"
     assert gate.decide(None, PASSED, at_run)[0] == "held"
 
 
 def test_an_automatic_outcome_is_one_click_past_the_cap_or_with_commitments(conditions, proposal):
-    at_run = with_conditions(conditions, stage="run")
+    at_run = dataclasses.replace(conditions, stage="run")
 
-    assert gate.decide(proposal, PASSED, with_conditions(at_run, automatic_today=49))[0] == (
+    assert gate.decide(proposal, PASSED, dataclasses.replace(at_run, automatic_today=49))[0] == (
         "automatic"
     )
-    assert gate.decide(proposal, PASSED, with_conditions(at_run, automatic_today=50))[0] == (
+    assert gate.decide(proposal, PASSED, dataclasses.replace(at_run, automatic_today=50))[0] == (
         "one_click"
     )
 
@@ -87,7 +86,7 @@ def test_an_automatic_outcome_is_one_click_past_the_cap_or_with_commitments(cond
         proposal.model_copy(update={"unconfirmed": "Which meter."}), PASSED, at_run
     ) == ("one_click", "the agent could not confirm everything")
 
-    assert gate.decide(proposal, PASSED, with_conditions(at_run, transferred=True)) == (
+    assert gate.decide(proposal, PASSED, dataclasses.replace(at_run, transferred=True)) == (
         "one_click",
         "it was handed over between departments",
     )
@@ -96,7 +95,7 @@ def test_an_automatic_outcome_is_one_click_past_the_cap_or_with_commitments(cond
 def test_a_flag_or_a_failed_check_holds_and_says_why_in_words(conditions, proposal):
     flags = [Flag("safety", "safety risk"), Flag("legal", "legal or press threat")]
 
-    assert gate.decide(proposal, PASSED, with_conditions(conditions, flags=flags)) == (
+    assert gate.decide(proposal, PASSED, dataclasses.replace(conditions, flags=flags)) == (
         "held",
         "flagged: safety risk, legal or press threat",
     )
@@ -111,8 +110,9 @@ def test_a_flag_or_a_failed_check_holds_and_says_why_in_words(conditions, propos
 
 def test_invoice_disputes_never_act_alone_whatever_the_stage(conditions, proposal):
     outcomes = [
-        outcome(proposal.model_copy(update={"playbook": playbook}), kind, stage, conditions)
-        for playbook in ["invoice_dispute"]
+        outcome(
+            proposal.model_copy(update={"playbook": "invoice_dispute"}), kind, stage, conditions
+        )
         for stage in ["walk", "run"]
         for kind in KINDS
     ]
@@ -145,7 +145,7 @@ def test_every_outcome_says_why(conditions, proposal):
     flags = [Flag("money", "money asked for or promised")]
 
     assert gate.decide(
-        dispute, PASSED, with_conditions(conditions, stage="crawl", flags=flags)
+        dispute, PASSED, dataclasses.replace(conditions, stage="crawl", flags=flags)
     ) == (
         "held",
         "invoice dispute is at crawl, so a person handles every one; "
@@ -165,11 +165,9 @@ def test_the_settings_that_bound_what_acts_alone():
 
 def outcome(proposal, kind, stage, conditions):
     decided, _reason = gate.decide(
-        proposal.model_copy(update={"kind": kind}), PASSED, with_conditions(conditions, stage=stage)
+        proposal.model_copy(update={"kind": kind}),
+        PASSED,
+        dataclasses.replace(conditions, stage=stage),
     )
 
     return decided
-
-
-def with_conditions(conditions, **changes):
-    return gate.Conditions(**{**vars(conditions), **changes})

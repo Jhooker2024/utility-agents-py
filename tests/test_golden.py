@@ -10,7 +10,7 @@ from datetime import date
 from functools import partial
 from pathlib import Path
 
-from tests.support.fixtures import working
+from tests.support.fixtures import TODAY, working
 from tests.support.replay import text
 from utility_agents import (
     chief_of_staff,
@@ -27,7 +27,6 @@ from utility_agents.proposal import PLAYBOOKS, Commitment, FieldReport, PolicyQu
 from utility_agents.work import Context, Handoff, Request
 
 PATH = Path(__file__).parent / "golden" / "golden.json"
-TODAY = date(2026, 11, 24)
 JUDGE = "claude-haiku-5-5"
 MESSAGE = (
     "Kerkstraat 4, C-1002, meter A-2002. Loose neutral tightened. Reading 9,876 kWh, 19-11-2026."

@@ -1,6 +1,7 @@
 from datetime import date
 
 import utility_agents.records
+from tests.support.fixtures import TODAY, with_fields
 from tests.support.replay import verdict
 from utility_agents import verifier
 from utility_agents.proposal import (
@@ -13,7 +14,6 @@ from utility_agents.proposal import (
 )
 from utility_agents.work import Context, Request, Worked
 
-TODAY = date(2026, 11, 24)
 MESSAGE = utility_agents.records.request("F-002")["message"]
 INJECTED = utility_agents.records.request("F-015")["message"]
 PROPOSAL = Proposal(
@@ -267,10 +267,6 @@ def test_a_held_request_fails_format_and_a_failed_judge_request_fails_sense(repl
     assert checks["format"] is None
     assert checks["grounded"] is None
     assert checks["sense"].startswith("the judge request failed: ")
-
-
-def with_fields(proposal: Proposal, **changes: object) -> Proposal:
-    return proposal.model_copy(update={"fields": proposal.fields.model_copy(update=changes)})
 
 
 def with_commitments(proposal: Proposal, *commitments: Commitment) -> Proposal:

@@ -1,16 +1,16 @@
-"""Tool results as labelled text, in the tellent agent's format: a count line, then one row per
-record, `- ` and columns joined by ` | `, `label: value`, and `none` for a missing value. Names
-stand next to IDs. What has one right answer is worked out here, so the model reads it instead
-of deriving it, and a warning in capitals follows the value it is about, as tellent writes
-`, OVERDUE`: a month billed twice, an amount that is not the kWh at the tariff's price, billed
-kWh the meter did not record, and an open invoice past its due date. A fact that comes from
+"""Tool results as labelled text: a count line, then one row per record, `- ` and columns
+joined by ` | `, `label: value`, and `none` for a missing value. Names stand next to IDs. What
+has one right answer is worked out here, so the model reads it instead of deriving it, and a
+warning in capitals follows the value it is about, such as `, OVERDUE`: a month billed twice,
+an amount that is not the kWh at the tariff's price, billed kWh the meter did not record, and
+an open invoice past its due date. A fact that comes from
 another record than the row's own names that record, so the model can give it as its source.
 """
 
 from datetime import date
 
 from utility_agents.records import Match, list_records, lookup
-from utility_agents.text import day, decimals, month, words
+from utility_agents.text import day, euros, month, words
 
 ROW_PREFIX = "- "
 COLUMN_SEPARATOR = " | "
@@ -66,9 +66,7 @@ def _row(collection: str, record: dict, today: date) -> str:
         )
 
     if collection == "tariffs":
-        return _columns(
-            _text(record["id"]), f"price: €{decimals(record['price_per_kwh_eur'], 2)} per kWh"
-        )
+        return _columns(_text(record["id"]), f"price: {euros(record['price_per_kwh_eur'])} per kWh")
 
     return _columns(
         _text(record["id"]),
@@ -79,13 +77,14 @@ def _row(collection: str, record: dict, today: date) -> str:
 
 def _invoice_row(invoice: dict, today: date) -> str:
     note = [f"note: {_text(invoice['note'])}"] if invoice.get("note") is not None else []
+    shown = invoice_facts(invoice)
 
     return _columns(
         _text(invoice["id"]),
         f"customer: {_owner(invoice['customer_id'])}",
         f"month: {month(invoice['period'])}" + _twice(invoice),
-        f"kWh billed: {invoice['kwh_billed']}" + _metered(invoice),
-        f"amount: €{decimals(invoice['amount_eur'], 2)}" + _priced(invoice),
+        f"kWh billed: {invoice['kwh_billed']}" + _metered(invoice, shown["metered_kwh"]),
+        f"amount: {euros(invoice['amount_eur'])}" + _priced(invoice, shown["tariff"]),
         f"status: {_text(invoice['status'])}" + _overdue(invoice, today),
         f"due: {day(date.fromisoformat(invoice['due_date']))}",
         *note,
@@ -159,9 +158,7 @@ def invoice_facts(invoice: dict) -> dict:
     }
 
 
-def _metered(invoice: dict) -> str:
-    metered = invoice_facts(invoice)["metered_kwh"]
-
+def _metered(invoice: dict, metered: int | None) -> str:
     if metered is None:
         return ", no meter usage on record"
 
@@ -171,16 +168,15 @@ def _metered(invoice: dict) -> str:
     return f", NOT WHAT THE METER RECORDED ({metered} kWh in usage record {invoice['customer_id']})"
 
 
-def _priced(invoice: dict) -> str:
-    tariff = invoice_facts(invoice)["tariff"]
+def _priced(invoice: dict, tariff: dict) -> str:
     expected = round(invoice["kwh_billed"] * tariff["price_per_kwh_eur"], 2)
-    rate = decimals(tariff["price_per_kwh_eur"], 2)
-    price = f"€{rate} per kWh, the price in tariff record {tariff['id']}"
+    rate = euros(tariff["price_per_kwh_eur"])
+    price = f"{rate} per kWh, the price in tariff record {tariff['id']}"
 
     if expected == invoice["amount_eur"]:
         return f", the kWh billed at {price}"
 
-    return f", NOT THE TARIFF PRICE: at {price} it would be €{decimals(expected, 2)}"
+    return f", NOT THE TARIFF PRICE: at {price} it would be {euros(expected)}"
 
 
 def _overdue(invoice: dict, today: date) -> str:

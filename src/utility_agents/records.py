@@ -162,8 +162,8 @@ def _with_assets(customer: dict) -> Match:
     return Match(customer, assets)
 
 
-# As in the tellent agent: case and accents do not count, and a query word may be part of a
-# name, so "devries" finds "de Vries" and "ines" finds "Inês".
+# Case and accents do not count, and a query word may be part of a name, so "devries" finds
+# "de Vries" and "ines" finds "Inês".
 def _searchable(match: Match) -> str:
     customer = match.customer
     texts = [customer["id"], customer["name"], customer["address"], customer["email"]]

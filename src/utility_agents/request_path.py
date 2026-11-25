@@ -40,6 +40,20 @@ from utility_agents.work import Context, Handoff, Request, Worked
 FIELD_APP = "field_app"
 
 
+@dataclasses.dataclass(frozen=True)
+class Handled:
+    """What the departments returned for a request: the result, its playbook and the steps,
+    the concerns named by every model that decided something about it (the chief of staff when
+    it sent the message to a person, and each department that filed a proposal, also one that
+    handed the request on), and whether it was handed over."""
+
+    worked: Worked
+    playbook: str | None = None
+    steps: list[dict] = dataclasses.field(default_factory=list)
+    concerns: list[str] = dataclasses.field(default_factory=list)
+    transferred: bool = False
+
+
 class UnknownRequest(LookupError):
     """No stored request has the ID asked for."""
 
@@ -109,12 +123,13 @@ def _decide(request: Request, context: Context) -> dict:
     routed, route_step = _traced(
         "chief_of_staff", lambda: chief_of_staff.route(request, context), _routed_text
     )
-    worked, playbook, steps, concerns = _work(routed, request.id, context)
+    handled = _work(routed, request.id, context)
+    worked, playbook = handled.worked, handled.playbook
     filed = worked.proposal
     checks, verify_step = _traced(
         "verifier", lambda: verifier.verify(worked, request, context), _checks_text
     )
-    raised = flags.raised(concerns, request.channel, request.customer_id)
+    raised = flags.raised(handled.concerns, request.channel, request.customer_id)
     conditions = gate.Conditions(
         stage=decisions.stage(
             context.log_directory, playbook, settings["stages"].get(playbook), context.today
@@ -122,13 +137,14 @@ def _decide(request: Request, context: Context) -> dict:
         automatic_today=decisions.automatic_today(context.log_directory, context.today),
         daily_cap=settings["daily_cap"],
         flags=raised,
-        transferred=any(step["step"] == "transfer" for step in steps),
+        transferred=handled.transferred,
     )
     (outcome, gate_reason), gate_step = _traced(
         "gate", lambda: gate.decide(filed, checks, conditions), ": ".join
     )
 
-    trace.append(context.log_directory, request.id, [route_step, *steps, verify_step, gate_step])
+    steps = [route_step, *handled.steps, verify_step, gate_step]
+    trace.append(context.log_directory, request.id, steps)
 
     told = notifications.build(request.id, raised, filed)
     notifications.deliver(context.log_directory, request.id, told)
@@ -160,20 +176,17 @@ def _traced[Result](
     return result, {**timed, "result": describe(result)}
 
 
-# What was returned, its playbook, the steps and the concerns. Every model that decided
-# something about the request names its concerns: the chief of staff when it sent the message
-# to a person, and each department that filed a proposal, also one that handed the request on.
 def _work(
     routed: chief_of_staff.Routed | chief_of_staff.Person, request_id: str, context: Context
-) -> tuple[Worked, str | None, list[dict], list[str]]:
+) -> Handled:
     if isinstance(routed, chief_of_staff.Person):
-        return Worked(held_reason=routed.reason), None, [], routed.concerns
+        return Handled(Worked(held_reason=routed.reason), concerns=routed.concerns)
 
     worked, steps = _run(routed.playbook, routed.handoff, request_id, context)
     filed = worked.proposal
 
     if filed is None or filed.transfer_to is None:
-        return worked, routed.playbook, steps, _filed_concerns(worked)
+        return Handled(worked, routed.playbook, steps, _filed_concerns(worked))
 
     tried = f"The {filed.department} agent passed it on: {filed.summary}"
     transfer = {"step": "transfer", "result": filed.transfer_to, "milliseconds": 0}
@@ -184,7 +197,7 @@ def _work(
 
     concerns = [*filed.concerns, *_filed_concerns(worked)]
 
-    return worked, playbook, [*steps, transfer, *more_steps], concerns
+    return Handled(worked, playbook, [*steps, transfer, *more_steps], concerns, transferred=True)
 
 
 def _run(
@@ -221,4 +234,4 @@ def _checks_text(checks: dict) -> str:
 
 
 def _check_text(result: verifier.Check) -> str:
-    return "pass" if result is None else f"fail: {result}"
+    return decisions.PASSED if result is None else decisions.FAILED + result

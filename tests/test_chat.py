@@ -1,18 +1,17 @@
 import io
-from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
 
-from tests.support.fixtures import field_report, hr_answer, invoice_dispute
+from tests.support.fixtures import field_report, hr_answer, invoice_dispute, overridden
 from tests.support.replay import tool_use, verdict
-from utility_agents import chat, json_lines
+from utility_agents import chat, json_lines, request_path
 from utility_agents.config import settings
 
 
 @pytest.fixture
 def proposal():
-    today = datetime.now(UTC).date()
+    today = request_path.utc_today()
 
     return field_report(
         summary="Blown fuse replaced.",
@@ -58,12 +57,8 @@ def test_a_field_report_in_your_own_words_shows_the_crm_update_first_and_the_ste
 def test_a_report_that_does_not_say_which_meter_offers_the_customers_and_runs_again_with_it(
     replay, proposal, monkeypatch, capsys
 ):
-    unmatched = {**proposal, "fields": {**proposal["fields"], "asset_id": "A-9999"}}
-    open_report = {
-        **unmatched,
-        "kind": "needs_attention",
-        "fields": {**unmatched["fields"], "asset_id": None},
-    }
+    unmatched = overridden(proposal, {"fields": {"asset_id": "A-9999"}})
+    open_report = for_a_person(proposal, asset_id=None)
 
     # The fact check sends the unknown meter back; the agent files it for a person instead.
     replay.sequence(
@@ -163,11 +158,7 @@ def test_a_customers_message_goes_straight_to_billing_with_the_customer_known_by
 def test_i_dont_know_at_the_missing_meter_leaves_it_for_a_person_and_sends_nothing_more(
     replay, proposal, monkeypatch, capsys
 ):
-    open_report = {
-        **proposal,
-        "kind": "needs_attention",
-        "fields": {**proposal["fields"], "asset_id": None},
-    }
+    open_report = for_a_person(proposal, asset_id=None)
 
     replay.sequence([tool_use("file_proposal", open_report), verdict(True)])
 
@@ -202,16 +193,9 @@ def test_i_dont_know_at_the_missing_meter_leaves_it_for_a_person_and_sends_nothi
 def test_a_report_that_names_no_customer_offers_the_ones_it_could_mean_and_runs_again_once(
     possible, answers, added, replay, proposal, monkeypatch, capsys
 ):
-    street_only = {
-        **proposal,
-        "kind": "needs_attention",
-        "fields": {
-            **proposal["fields"],
-            "customer_id": None,
-            "asset_id": None,
-            "possible_customer_ids": possible,
-        },
-    }
+    street_only = for_a_person(
+        proposal, customer_id=None, asset_id=None, possible_customer_ids=possible
+    )
     again = [tool_use("file_proposal", proposal), verdict(True)] if added else []
 
     replay.sequence([tool_use("file_proposal", street_only), verdict(True), *again])
@@ -231,16 +215,9 @@ def test_a_report_that_names_no_customer_offers_the_ones_it_could_mean_and_runs_
 def test_a_street_only_report_shows_who_it_could_be_and_offers_them_by_name(
     replay, proposal, monkeypatch, capsys
 ):
-    street_only = {
-        **proposal,
-        "kind": "needs_attention",
-        "fields": {
-            **proposal["fields"],
-            "customer_id": None,
-            "asset_id": None,
-            "possible_customer_ids": ["C-1002", "C-1005"],
-        },
-    }
+    street_only = for_a_person(
+        proposal, customer_id=None, asset_id=None, possible_customer_ids=["C-1002", "C-1005"]
+    )
 
     replay.sequence([tool_use("file_proposal", street_only), verdict(True)])
 
@@ -263,11 +240,7 @@ def test_a_street_only_report_shows_who_it_could_be_and_offers_them_by_name(
 def test_a_field_report_asks_for_what_is_missing_once_and_never_again_after_the_second_run(
     replay, proposal, monkeypatch, capsys
 ):
-    unknown = {
-        **proposal,
-        "kind": "needs_attention",
-        "fields": {**proposal["fields"], "customer_id": None, "asset_id": None},
-    }
+    unknown = for_a_person(proposal, customer_id=None, asset_id=None)
 
     replay.sequence(
         [
@@ -318,6 +291,11 @@ def test_the_evals_menu_runs_all_three_playbooks_and_prints_each_report(
 
     for playbook in ["field_report", "invoice_dispute", "policy_question"]:
         assert f"Playbook {playbook}: " in output
+
+
+def for_a_person(proposal: dict, **fields: object) -> dict:
+    """The report filed for a person instead, with these fields replaced."""
+    return overridden(proposal, {"kind": "needs_attention", "fields": fields})
 
 
 def typed(text, monkeypatch, capsys):

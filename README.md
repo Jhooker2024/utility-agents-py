@@ -10,6 +10,8 @@ agents: field operations (field reports to CRM), billing (invoice disputes) and 
 questions). 246 labelled cases test them. The shared core is the expensive part; each extra
 agent is a playbook, a Pydantic model and an entry in the playbook table.
 
+To run it yourself, see [Running it](#running-it).
+
 ## How it works, in plain words
 
 **Who.** Three kinds of people write to the utility: a customer with a question about a bill, a
@@ -86,22 +88,33 @@ Three messages from a live run on 2026-11-25, typed the way people type:
 
 ## Running it
 
-You need Python 3.12 or later, [uv](https://docs.astral.sh/uv/) and an Anthropic API key. Put
-the key in `.env` at the repository root, which git ignores. The command loads it on start, so
-the key never goes into a shell command:
+You need Python 3.12 or later, [uv](https://docs.astral.sh/uv/) and an Anthropic API key.
+Get the code:
+
+```sh
+git clone https://github.com/Jhooker2024/utility-agents-py.git
+cd utility-agents-py
+```
+
+Put the key in a file named `.env` in that folder, which git ignores. The command loads it on
+start, so the key never goes into a shell command:
 
 ```sh
 ANTHROPIC_API_KEY=your-key
 ```
 
-Then, from the repository root:
+Then, from the same folder:
 
 ```sh
-uv sync
-uv run pytest                               # offline, no key needed
-uv run utility-agents demo                  # five real requests, step by step
-uv run utility-agents                       # the interactive menu
+uv sync                                     # installs everything, once
+uv run pytest                               # the tests: offline, free, no key needed
+uv run utility-agents                       # the menu: type a request in your own words
+uv run utility-agents demo                  # five stored requests, step by step
 ```
+
+In the menu, move with the arrow keys or type a number, then press Enter. Enter on an empty
+line goes back, and "Quit" leaves. Every request you type is a paid call to the AI, about one
+to two cents each. The tests cost nothing. The full eval cost $2.61 when it ran on 2026-11-25.
 
 `demo` sends five stored requests through the live system, each picked to prove one claim from
 the deck, and prints what came in, what the agents did, what they propose, the three checks,

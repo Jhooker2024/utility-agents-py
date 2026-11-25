@@ -11,9 +11,11 @@ CRM update and why. A "What next?" list then shows the checks and steps, or appr
 rejects a draft, recorded as a staff review. The demo and the evals run from the same menu.
 """
 
+from enum import Enum
+
 from utility_agents import decisions, demo, evaluation, proposal, records, request_path, trace
 from utility_agents.config import settings
-from utility_agents.picker import pick, read_line
+from utility_agents.picker import Options, pick, read_line
 from utility_agents.presenter import clear, details, field_text, paint, summary, terminal
 from utility_agents.text import words
 
@@ -40,9 +42,13 @@ EVALS = [
 GO_BACK = " (or press Enter to go back) "
 ASK_CUSTOMER = "Which customer was it? A name and street (press Enter if you don't know): "
 ASK_METER = "Which meter was it? The meter number (press Enter if you don't know): "
-SOMEONE_ELSE = "Someone else: type a name and street"
-NOT_KNOWN = "I don't know: leave it for a person"
-OTHER = "other"
+
+
+class Instead(Enum):
+    """What a person may pick in place of a record."""
+
+    SOMEONE_ELSE = "Someone else: type a name and street"
+    NOT_KNOWN = "I don't know: leave it for a person"
 
 
 def start() -> None:
@@ -97,7 +103,7 @@ def _field_report() -> None:
         "Write what happened on the visit: who it was for (a name and street, or a meter\n"
         "number), what you found and did, any readings, and anything still to do.\n"
     )
-    _submit("field_app", _answer("Report" + GO_BACK), None)
+    _submit(request_path.FIELD_APP, _answer("Report" + GO_BACK), None)
 
 
 def _demo() -> None:
@@ -132,7 +138,7 @@ def _submit(channel: str, message: str, customer_id: str | None) -> None:
 
     if added:
         message = f"{message}\nAdded by the technician: {'; '.join(added)}"
-        decision = _decided("field_app", message, None)
+        decision = _decided(channel, message, customer_id)
 
     _next(decision, message)
 
@@ -170,37 +176,31 @@ def _added(decision: dict) -> list[str]:
 # The customers the agent found that the report could mean are offered by name. Returns the
 # ID picked, if one was, and what to add to the report.
 def _customer_asked(possible: list[str]) -> tuple[str | None, list[str]]:
-    found = [
-        customer_id
+    offered = {
+        customer_id: field_text("customer_id", customer_id)
         for customer_id in possible
         if records.known("field_operations", "customers", customer_id)
-    ]
-    offered = [(customer_id, field_text("customer_id", customer_id)) for customer_id in found]
-    choice = OTHER
+    }
 
-    if offered:
-        choice = pick(
-            "Which customer was it?", [*offered, (OTHER, SOMEONE_ELSE), (None, NOT_KNOWN)]
-        )
+    if not offered:
+        return None, _typed("customer", ASK_CUSTOMER)
 
-    if choice is None:
+    choice = pick("Which customer was it?", [*offered.items(), *_options(*Instead)])
+
+    if choice is Instead.NOT_KNOWN:
         return None, []
 
-    if choice == OTHER:
-        typed = _answer(ASK_CUSTOMER)
+    if choice is Instead.SOMEONE_ELSE:
+        return None, _typed("customer", ASK_CUSTOMER)
 
-        return None, [f"customer {typed}"] if typed else []
-
-    return choice, [f"customer {field_text('customer_id', choice)}"]
+    return choice, [f"customer {offered[choice]}"]
 
 
 # A customer on record has their meters and cables offered. One just picked who has a single
 # asset is not asked: the agent takes that asset.
 def _meter_asked(customer_id: str | None, just_picked: bool) -> list[str]:
     if not records.known("field_operations", "customers", customer_id):
-        typed = _answer(ASK_METER)
-
-        return [f"meter {typed}"] if typed else []
+        return _typed("meter", ASK_METER)
 
     assets = records.list_records("field_operations", "assets", customer_id)
 
@@ -208,9 +208,20 @@ def _meter_asked(customer_id: str | None, just_picked: bool) -> list[str]:
         return []
 
     offered = [(asset, field_text("asset_id", asset["id"])) for asset in assets]
-    asset = pick("Which meter or cable was it?", [*offered, (None, NOT_KNOWN)])
+    asset = pick("Which meter or cable was it?", [*offered, *_options(Instead.NOT_KNOWN)])
 
-    return [] if asset is None else [f"{words(asset['type'])} {asset['id']}"]
+    return [] if asset is Instead.NOT_KNOWN else [f"{words(asset['type'])} {asset['id']}"]
+
+
+def _options(*instead: Instead) -> Options:
+    return [(choice, choice.value) for choice in instead]
+
+
+def _typed(name: str, prompt: str) -> list[str]:
+    """What a person typed for a missing detail, as the line to add; nothing for Enter alone."""
+    typed = _answer(prompt)
+
+    return [f"{name} {typed}"] if typed else []
 
 
 # What can be done with this result: offered after every result until "Back to the menu".
@@ -258,7 +269,7 @@ def _reviews(decision: dict) -> list[tuple[str, str]]:
     if decision["outcome"] == "automatic":
         return [("rejected", "Reject it: it should not have gone ahead")]
 
-    passed = all(result == "pass" for result in decision["checks"].values())
+    passed = all(result == decisions.PASSED for result in decision["checks"].values())
     approval = [("sent_unedited", "Approve the draft as it is")] if passed else []
 
     return [*approval, ("edited", "Approve it after editing"), ("rejected", "Reject it")]

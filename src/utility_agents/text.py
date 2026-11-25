@@ -41,6 +41,11 @@ def decimals(number: float, places: int) -> str:
     return f"{float(number):.{places}f}"
 
 
+def euros(amount: float) -> str:
+    """An amount in euros with two decimals: euros(396.8) is "€396.80"."""
+    return "€" + decimals(amount, 2)
+
+
 def rounded(number: float, places: int = 0) -> Decimal:
     """A number rounded to `places` decimals, a half away from zero: rounded(12.5) is 13."""
     return Decimal(number).quantize(Decimal(1).scaleb(-places), rounding=ROUND_HALF_UP)

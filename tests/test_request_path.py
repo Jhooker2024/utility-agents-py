@@ -1,8 +1,6 @@
-from datetime import date
-
 import pytest
 
-from tests.support.fixtures import field_report, hr_answer, invoice_dispute
+from tests.support.fixtures import TODAY, field_report, hr_answer, invoice_dispute
 from tests.support.replay import role, route, tool_use, verdict
 from utility_agents import json_lines, trace
 from utility_agents.config import settings
@@ -14,8 +12,6 @@ from utility_agents.request_path import (
     run_directory,
 )
 from utility_agents.work import Request
-
-TODAY = date(2026, 11, 24)
 
 
 def test_the_same_request_twice_returns_the_stored_decision_with_no_second_api_request(
@@ -125,6 +121,7 @@ def test_a_transfer_is_one_logged_step_only_the_final_proposal_is_the_decision_a
     handed_on = invoice_dispute(
         summary="A question about leave, not a bill.",
         kind="needs_attention",
+        transfer_to="hr",
         fields={"invoice_id": None, "outcome": "escalate"},
     )
 
@@ -135,7 +132,7 @@ def test_a_transfer_is_one_logged_step_only_the_final_proposal_is_the_decision_a
 
     replay.roles(
         chief_of_staff=[route("billing")],
-        billing=[tool_use("file_proposal", {**handed_on, "transfer_to": "hr"})],
+        billing=[tool_use("file_proposal", handed_on)],
         hr=[tool_use("file_proposal", answer)],
         judge=[verdict(True)],
     )

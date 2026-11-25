@@ -32,20 +32,21 @@ from utility_agents.work import Context, Request, Worked
 
 Check = str | None
 
-# What a month is called besides its English name: English abbreviations, then Dutch names.
+# What a month is called besides its English name and that name's first three letters: the
+# Dutch names where they differ, and "sept".
 OTHER_MONTH_NAMES = (
-    (("jan",), ("januari",)),
-    (("feb",), ("februari",)),
-    (("mar",), ("maart", "mrt")),
-    (("apr",), ("april",)),
-    ((), ("mei",)),
-    (("jun",), ("juni",)),
-    (("jul",), ("juli",)),
-    (("aug",), ("augustus",)),
-    (("sep", "sept"), ("september",)),
-    (("oct",), ("oktober", "okt")),
-    (("nov",), ("november",)),
-    (("dec",), ("december",)),
+    ("januari",),
+    ("februari",),
+    ("maart", "mrt"),
+    (),
+    ("mei",),
+    ("juni",),
+    ("juli",),
+    ("augustus",),
+    ("sept",),
+    ("oktober", "okt"),
+    (),
+    (),
 )
 ORDINAL_SUFFIXES = ("", "st", "nd", "rd", "th", "e")
 PERIOD_FIELD = "period"
@@ -264,8 +265,7 @@ def _sourced(commitment: Commitment, message: str, department: str) -> list[str]
     named = [
         (collection, record)
         for collection in records.collections(department)
-        for record in records.list_records(department, collection, None)
-        if record["id"] == source
+        if (record := records.lookup(department, collection, source)) is not None
     ]
 
     if not named:
@@ -273,22 +273,21 @@ def _sourced(commitment: Commitment, message: str, department: str) -> list[str]
 
     text = _normalized(words)
     facts = [fact for collection, record in named for fact in _facts(collection, record)]
-    figures = [written for fact in facts if _is_figure(*fact) for written in _renderings(*fact)]
-    names = [written for fact in facts if not _is_figure(*fact) for written in _renderings(*fact)]
+    written = [(rendering, _is_name(*fact)) for fact in facts for rendering in _renderings(*fact)]
 
-    if not any(_mentions(text, written) for written in figures):
+    if not any(_mentions(text, rendering) for rendering, name in written if not name):
         return [f"“{words}” is not in record {source}."]
 
-    if _digits(_without(text, [*figures, *names])):
+    if _digits(_without(text, [rendering for rendering, _name in written])):
         return [f"“{words}” holds a figure that is not in record {source}."]
 
     return []
 
 
-# A record's amounts, counts, periods and dates are what a promise can rest on. Its ID, its
-# customer and its status only say which record it is.
-def _is_figure(field: str, value: object) -> bool:
-    return field == PERIOD_FIELD or not isinstance(value, str) or _date(value) is not None
+# A plain text value, such as an ID, a customer or a status, only says which record it is. A
+# promise rests on the record's amounts, counts, periods and dates.
+def _is_name(field: str, value: object) -> bool:
+    return isinstance(value, str) and field != PERIOD_FIELD and _date(value) is None
 
 
 # A record's facts as its tool row shows them. An invoice row also shows the price in the
@@ -326,11 +325,11 @@ def _renderings(field: str, value: object) -> list[str]:
     if isinstance(value, int | float):
         return _number_renderings(value)
 
-    if isinstance(value, str):
-        written = _date(value)
+    if _is_name(field, value):
+        return [_normalized(value)]
 
-        if written is None:
-            return [_normalized(value)]
+    if isinstance(value, str):
+        written = date.fromisoformat(value)
 
         return [*_date_renderings(written), *_dated_renderings(written)]
 
@@ -390,7 +389,8 @@ def _names_date(quote: str, written: date, today: date) -> bool:
 
 
 def _date_renderings(written: date) -> list[str]:
-    """A date as a report or a draft may write it, without its year."""
+    """A date as a report or a draft may write it: in full, or the day and month without the
+    year."""
     numeric = [text for text, _separator in _numeric_dates(written)]
 
     return [written.isoformat(), *numeric, *_named_dates(written)]
@@ -419,19 +419,20 @@ def _numeric_dates(written: date) -> list[tuple[str, str]]:
 
 
 def _named_dates(written: date) -> list[str]:
+    days = [f"{written.day}{suffix}" for suffix in ORDINAL_SUFFIXES]
+
     return [
         rendering
         for name in _month_names(written.month)
-        for suffix in ORDINAL_SUFFIXES
-        for joiner in (" ", " of ")
-        for rendering in (f"{written.day}{suffix}{joiner}{name}", f"{name} {written.day}{suffix}")
+        for day_text in days
+        for rendering in (f"{day_text} {name}", f"{day_text} of {name}", f"{name} {day_text}")
     ]
 
 
-def _month_names(month: int) -> tuple[str, ...]:
-    abbreviations, dutch = OTHER_MONTH_NAMES[month - 1]
+def _month_names(month: int) -> list[str]:
+    english = MONTHS[month - 1].lower()
 
-    return (MONTHS[month - 1].lower(), *abbreviations, *dutch)
+    return _unique([english, english[:3], *OTHER_MONTH_NAMES[month - 1]])
 
 
 def _appears(phrase: str | None, text: str) -> bool:

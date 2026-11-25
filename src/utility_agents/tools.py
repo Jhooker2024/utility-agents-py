@@ -29,20 +29,11 @@ class Tool(NamedTuple):
     call: Callable[[dict, Context], object]
 
 
-def definition(tool: Tool, context: Context) -> dict:
-    """A tool as the model API takes it: a strict schema, so the API checks the arguments."""
-    return {
-        "name": tool.name,
-        "description": tool.description,
-        "input_schema": tool.input_schema(context),
-        "strict": True,
-    }
-
-
 def as_langchain(tool: Tool, context: Context) -> StructuredTool:
-    """A tool as LangChain runs it for `context`. The model is sent our own definition:
-    LangChain's strict conversion would mark every property required, and `list_records`
-    takes an optional customer. A filed proposal travels as the tool message's artifact."""
+    """A tool as LangChain runs it for `context`. The model is sent our own definition, a
+    strict schema, so the API checks the arguments: LangChain's strict conversion would mark
+    every property required, and `list_records` takes an optional customer. A filed proposal
+    travels as the tool message's artifact."""
 
     def run(**arguments: object) -> tuple[str, object]:
         result = tool.call(arguments, context)
@@ -52,7 +43,12 @@ def as_langchain(tool: Tool, context: Context) -> StructuredTool:
 
         return str(result), None
 
-    described = definition(tool, context)
+    described = {
+        "name": tool.name,
+        "description": tool.description,
+        "input_schema": tool.input_schema(context),
+        "strict": True,
+    }
 
     return StructuredTool.from_function(
         func=run,

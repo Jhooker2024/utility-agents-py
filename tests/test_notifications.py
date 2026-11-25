@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 
+from tests.support.fixtures import with_fields
 from utility_agents import flags, json_lines, notifications, prompts
 from utility_agents.proposal import FieldReport, PolicyQuestion, Proposal
 
@@ -64,7 +65,7 @@ def test_a_customers_money_question_and_an_unknown_sender_tell_no_team_billing_a
 
 def test_flags_and_a_billing_follow_up_notify_each_team_once_even_when_worked_again(tmp_path):
     raised = flags.raised(["safety", "safety"], "field_app", "C-1004")
-    proposal = meter_accuracy(REPORT)
+    proposal = with_fields(REPORT, billing_follow_up="meter_accuracy")
 
     built = notifications.build("F-015", raised, proposal)
 
@@ -89,7 +90,7 @@ def test_flags_and_a_billing_follow_up_notify_each_team_once_even_when_worked_ag
 
 def test_a_team_with_two_reasons_gets_both_in_one_notification_not_only_the_first():
     raised = flags.raised(["money"], "field_app", "C-1004")
-    proposal = meter_accuracy(REPORT)
+    proposal = with_fields(REPORT, billing_follow_up="meter_accuracy")
 
     built = notifications.build("F-026", raised, proposal)
 
@@ -106,9 +107,3 @@ def test_every_concern_has_a_label_and_a_notice_and_the_agents_rules_define_ever
         assert flags.label(concern) != ""
         assert "R-1" in flags.notice(concern, "R-1")
         assert f"- {concern}:" in rules, f"the concern rules do not define {concern}"
-
-
-def meter_accuracy(report):
-    fields = report.fields.model_copy(update={"billing_follow_up": "meter_accuracy"})
-
-    return report.model_copy(update={"fields": fields})

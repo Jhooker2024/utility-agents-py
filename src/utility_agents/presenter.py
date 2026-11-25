@@ -6,12 +6,13 @@ for a technical reader.
 
 import os
 import sys
+import textwrap
 from collections.abc import Callable, Iterable
 from datetime import date
 
-from utility_agents import json_lines, proposal, records, usage
+from utility_agents import decisions, json_lines, proposal, records, usage
 from utility_agents.notifications import BILLING_FOLLOW_UPS
-from utility_agents.text import day, decimals, grouped, month, rounded, words
+from utility_agents.text import day, euros, grouped, month, rounded, words
 
 OUTCOMES = {
     "automatic": "DONE WITHOUT A PERSON",
@@ -212,10 +213,10 @@ def _check_lines(filed: dict | None, checks: dict | None) -> list[str]:
     lines = []
 
     for check, label in CHECKS:
-        if checks[check] == "pass":
+        if checks[check] == decisions.PASSED:
             lines.append(f"  ✓ {label}")
         else:
-            lines += [f"  ✗ {label}", wrap(checks[check].removeprefix("fail: "), 4)]
+            lines += [f"  ✗ {label}", wrap(checks[check].removeprefix(decisions.FAILED), 4)]
 
     return lines
 
@@ -309,7 +310,7 @@ def field_text(field: str, value: object) -> str:
 
 
 def _invoice_text(invoice: dict) -> str:
-    amount = "€" + decimals(invoice["amount_eur"], 2)
+    amount = euros(invoice["amount_eur"])
 
     return (
         f"{month(invoice['period'])} bill, {invoice['kwh_billed']} kWh, {amount}, "
@@ -398,24 +399,13 @@ def _hanging(label: str, text: str) -> list[str]:
 
 
 def _lines(text: str, width: int) -> list[str]:
-    return [line for paragraph in text.split("\n") for line in _wrapped(paragraph, width)]
-
-
-# Words fill a line until the next would reach the width. Length is counted in bytes, so a
-# line with "€" or "✓" breaks a little early and never runs over.
-def _wrapped(paragraph: str, width: int) -> list[str]:
-    lines, line = [], ""
-
-    for word in filter(None, paragraph.split(" ")):
-        if not line:
-            line = word
-        elif len(line.encode()) + len(word.encode()) >= width:
-            lines.append(line)
-            line = word
-        else:
-            line += " " + word
-
-    return [*lines, line]
+    """Each paragraph wrapped at whole words. An empty paragraph stays an empty line."""
+    return [
+        line
+        for paragraph in text.split("\n")
+        for line in textwrap.wrap(paragraph, width, break_long_words=False, break_on_hyphens=False)
+        or [""]
+    ]
 
 
 def _seconds(entries: list[dict]) -> str:

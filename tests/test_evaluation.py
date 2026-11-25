@@ -1,18 +1,16 @@
 import copy
 import dataclasses
 import os
-from datetime import date
 from pathlib import Path
 
 import pytest
 
-from tests.support.fixtures import hr_answer
+from tests.support.fixtures import TODAY, hr_answer
 from tests.support.replay import grade, text, tool_use, verdict
 from utility_agents import evaluation, json_lines, judge, records
 from utility_agents.config import settings
 from utility_agents.evaluation import Result, Run
 
-TODAY = date(2026, 11, 24)
 TAMPERING = {
     "request_id": "F-007",
     "kind": "needs_attention",

@@ -15,6 +15,9 @@ from utility_agents import json_lines
 
 FILE_NAME = "decisions.jsonl"
 BREACH_WINDOW_DAYS = 30
+# How a check's result is written in a decision: passed, or failed with its reason after it.
+PASSED = "pass"
+FAILED = "fail: "
 STAGES = ("crawl", "walk", "run")
 ACTIONS = ("sent_unedited", "edited", "rejected")
 
@@ -82,13 +85,13 @@ def _moved(stage: str, steps: int) -> str:
     return STAGES[min(max(STAGES.index(stage) + steps, 0), len(STAGES) - 1)]
 
 
-def _breached(directory: str | Path, playbook: str | None, today: date) -> bool:
+def _breached(directory: str | Path, playbook: str, today: date) -> bool:
     since = (today - timedelta(days=BREACH_WINDOW_DAYS)).isoformat()
     entries = _entries(directory)
     decisions = {
         entry["request_id"]: entry
         for entry in entries
-        if entry["type"] == "decision" and playbook in (None, entry.get("playbook"))
+        if entry["type"] == "decision" and entry.get("playbook") == playbook
     }
 
     return any(

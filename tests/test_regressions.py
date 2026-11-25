@@ -424,6 +424,7 @@ def test_concerns_filed_before_a_hand_over_still_raise_their_flags_and_tell_thei
         summary="A threat in a question about leave, not a bill.",
         kind="needs_attention",
         concerns=["legal", "vulnerable"],
+        transfer_to="hr",
         fields={"invoice_id": None, "outcome": "escalate"},
     )
     answer = hr_answer(
@@ -433,7 +434,7 @@ def test_concerns_filed_before_a_hand_over_still_raise_their_flags_and_tell_thei
 
     replay.roles(
         chief_of_staff=[route("billing")],
-        billing=[tool_use("file_proposal", {**handed_on, "transfer_to": "hr"})],
+        billing=[tool_use("file_proposal", handed_on)],
         hr=[tool_use("file_proposal", answer)],
         judge=[verdict(True)],
     )
@@ -453,6 +454,7 @@ def test_a_second_hand_over_is_held_for_a_person_and_says_why(replay, tmp_path):
     handed_on = invoice_dispute(
         summary="A question about leave, not a bill.",
         kind="needs_attention",
+        transfer_to="hr",
         fields={"invoice_id": None, "outcome": "escalate"},
     )
     handed_back = hr_answer(
@@ -463,7 +465,7 @@ def test_a_second_hand_over_is_held_for_a_person_and_says_why(replay, tmp_path):
 
     replay.roles(
         chief_of_staff=[route("billing")],
-        billing=[tool_use("file_proposal", {**handed_on, "transfer_to": "hr"})],
+        billing=[tool_use("file_proposal", handed_on)],
         hr=[tool_use("file_proposal", handed_back)],
         judge=[verdict(True)],
     )
@@ -571,7 +573,7 @@ def test_the_environment_file_takes_quotes_and_export_and_never_overrides_the_sh
 
 def test_every_customer_a_report_could_mean_is_on_record_and_the_agent_is_told_to_search(replay):
     unnamed = {"customer_id": None, "possible_customer_ids": ["C-1002", "C-9999"], "readings": []}
-    filed = {**field_report(fields=unnamed), "kind": "needs_attention"}
+    filed = field_report(kind="needs_attention", fields=unnamed)
     listed = new(filed, "F-1", "field_operations", "field_report")
     schema = json_schema("field_report")["properties"]["fields"]
 
