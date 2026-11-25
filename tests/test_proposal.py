@@ -154,7 +154,7 @@ def test_a_placeholder_summary_or_draft_goes_back_to_the_agent_as_invalid():
 
 
 def test_every_invalid_field_shared_or_playbook_is_named_in_one_message():
-    fields = {name: value for name, value in VALID["fields"].items() if name != "visit_date"}
+    fields = {name: value for name, value in VALID["fields"].items() if name != "fault_type"}
     filed = {
         **VALID,
         "kind": "send",
@@ -166,7 +166,7 @@ def test_every_invalid_field_shared_or_playbook_is_named_in_one_message():
         "commitments": [{"type": ["is invalid"]}],
         "kind": ["is invalid"],
         "fields": {
-            "visit_date": ["can't be blank"],
+            "fault_type": ["can't be blank"],
             "readings": [{"unit": ["can't be blank"]}],
         },
     }

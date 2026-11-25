@@ -62,7 +62,7 @@ class Reading(Entry):
 class FieldReport(Entry):
     customer_id: str | None = None
     asset_id: str | None = None
-    visit_date: date
+    visit_date: date | None = None
     visit_date_quote: str | None = None
     fault_type: Literal[
         "no_fault", "meter_fault", "cable_damage", "connection_fault", "tampering", "other"
@@ -75,6 +75,7 @@ class FieldReport(Entry):
 
 class InvoiceDispute(Entry):
     invoice_id: str | None = None
+    invoice_quote: str | None = None
     outcome: Literal["explain", "correct", "escalate"]
 
 
@@ -120,8 +121,9 @@ PLAYBOOKS = {
 }
 DEPARTMENTS = ("billing", "field_operations", "hr")
 KINDS = ("reply", "record_update", "needs_attention")
-# A record update must name what it updates; a proposal for a person may leave it open.
-IDENTIFIED = {("field_report", "record_update"): records.REPORT_FIELDS}
+# A record update must say what it updates and when; a proposal for a person may leave them
+# open.
+NEEDED_TO_UPDATE = {("field_report", "record_update"): (*records.REPORT_FIELDS, "visit_date")}
 # A field report is never handed over: what billing needs goes in its billing follow-up, so
 # the CRM update is never lost to another department's proposal.
 NEVER_HANDED_OVER = ("field_report",)
@@ -173,7 +175,7 @@ def new(filed: dict, request_id: str, department: str, playbook: str) -> Proposa
     if shared_input.get("transfer_to") == department:
         problems["transfer_to"] = ["is this department"]
 
-    for name in IDENTIFIED.get((playbook, kind), ()):
+    for name in NEEDED_TO_UPDATE.get((playbook, kind), ()):
         if _blank(fields_input.get(name)):
             field_problems.setdefault(name, [BLANK])
 

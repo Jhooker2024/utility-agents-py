@@ -18,10 +18,10 @@ OCTOBER = {
 def test_an_invoice_row_names_the_customer_and_marks_what_code_settles_about_it():
     for invoice, fact in [
         (OCTOBER, "month: October 2026, BILLED TWICE (also INV-3008)"),
-        (OCTOBER, "kWh billed: 268, the meter recorded the same"),
+        (OCTOBER, "kWh billed: 268, the meter recorded the same (usage record C-1001)"),
         (
             {**OCTOBER, "kwh_billed": 300},
-            "kWh billed: 300, NOT WHAT THE METER RECORDED (268 kWh)",
+            "kWh billed: 300, NOT WHAT THE METER RECORDED (268 kWh in usage record C-1001)",
         ),
         (
             {**OCTOBER, "amount_eur": 99.0},
@@ -43,10 +43,12 @@ def test_a_month_billed_once_at_the_tariff_price_and_not_yet_due_carries_no_warn
     assert listed("invoices", invoices, TODAY) == (
         "Matching invoices: 2.\n"
         "- INV-3007 | customer: Anna de Vries (C-1001) | month: September 2026 | kWh billed: "
-        "214, the meter recorded the same | amount: €68.48, the kWh billed at €0.32 per kWh, the "
-        "price in tariff record fixed | status: paid | due: 15 Oct 2026\n"
+        "214, the meter recorded the same (usage record C-1001) | amount: €68.48, the kWh "
+        "billed at €0.32 per kWh, the price in tariff record fixed | status: paid | due: "
+        "15 Oct 2026\n"
         "- INV-3008 | customer: Anna de Vries (C-1001) | month: October 2026 | kWh billed: 268, "
-        "the meter recorded the same | amount: €85.76, the kWh billed at €0.32 per kWh, the "
+        "the meter recorded the same (usage record C-1001) | amount: €85.76, the kWh billed "
+        "at €0.32 per kWh, the "
         "price in tariff record fixed | status: open | due: 30 Nov 2026"
     )
 

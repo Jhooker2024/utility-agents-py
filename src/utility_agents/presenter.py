@@ -42,6 +42,7 @@ LABELS = {
     "customer_id": "Customer",
     "asset_id": "Equipment",
     "invoice_id": "Invoice",
+    "invoice_quote": "Their words",
     "policy_id": "Policy",
     "visit_date": "Visit",
     "fault_type": "Fault",
@@ -53,6 +54,7 @@ FIELD_ORDER = (
     "customer_id",
     "asset_id",
     "invoice_id",
+    "invoice_quote",
     "policy_id",
     "outcome",
     "visit_date",
@@ -276,6 +278,9 @@ def _field_text(field: str, value: object) -> str:
 
     if field == "invoice_id":
         return _record_text("invoices", value, _invoice_text, department="billing")
+
+    if field == "invoice_quote":
+        return f'"{value}"'
 
     if field == "policy_id":
         return _record_text("policies", value, lambda found: found["title"], department="hr")

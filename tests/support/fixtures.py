@@ -41,14 +41,15 @@ def hr_answer(**overrides: object) -> dict:
 
 
 def invoice_dispute(**overrides: object) -> dict:
-    """A reply to a dispute about invoice INV-3002, which a colleague corrects."""
+    """A reply to a dispute about invoice INV-3002, named by its number, which a colleague
+    corrects."""
     return _overridden(
         {
             "summary": "Estimated reading; invoice needs correcting.",
             "draft": "A colleague will correct invoice INV-3002 once the meter is read.",
             "commitments": [],
             "kind": "reply",
-            "fields": {"invoice_id": "INV-3002", "outcome": "correct"},
+            "fields": {"invoice_id": "INV-3002", "invoice_quote": "INV-3002", "outcome": "correct"},
         },
         overrides,
     )

@@ -47,6 +47,7 @@ def run(handoff: Handoff, context: Context) -> Worked:
         context,
         department=proposal.department(context.playbook),
         message=handoff.message,
+        customer_id=handoff.customer_id,
         mode="propose",
         consults_left=MAX_CONSULTS,
     )

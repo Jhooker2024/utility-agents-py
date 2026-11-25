@@ -7,9 +7,12 @@ reason it fails.
     message for patterns. Every ID field matches a record in the department's scope. For a
     field report, each reading's quote appears in the report and holds the reading's digits,
     the visit date's quote appears in the report and names that date (or, with no quote, the
-    visit date is today), and the note lists no commitment: a field report promises nothing. A
-    meter or cable belongs to the customer named. Every commitment's words appear in the draft
-    and, except for a legal one, in its source: the message, or a value of the record it names,
+    visit date is today or left empty), and the note lists no commitment: a field report
+    promises nothing. A meter or cable belongs to the customer named. For an invoice dispute,
+    the invoice belongs to the customer the request is from, and the customer's words that
+    identify it appear in the message; with no such words the invoice may be named only when
+    it is the customer's only one. Every commitment's words appear in the draft and, except
+    for a legal one, in its source: the message, or a fact its record's tool row shows,
     written the usual ways.
   * sense: a judge model sees only the message and the proposal, never the playbook or the
     agent's prompt, and says whether the proposal fits the message.
@@ -21,9 +24,9 @@ import json
 from datetime import date
 
 from utility_agents import model, prompts, records
-from utility_agents.proposal import Commitment, FieldReport, Proposal
+from utility_agents.proposal import Commitment, FieldReport, InvoiceDispute, Proposal
 from utility_agents.text import day, decimals, figure, grouped
-from utility_agents.work import Context, Worked
+from utility_agents.work import Context, Request, Worked
 
 Check = str | None
 
@@ -42,6 +45,7 @@ MONTH_NAMES = (
     (("december", "dec"), ("december",)),
 )
 ORDINAL_SUFFIXES = ("", "st", "nd", "rd", "th", "e")
+PERIOD_FIELD = "period"
 NOTHING_TO_CHECK = "There is no proposal to check."
 
 
@@ -52,8 +56,8 @@ class Verdict(model.Answer):
     sensible: bool
 
 
-def verify(worked: Worked, message: str, context: Context) -> dict:
-    """The three checks for what a department returned."""
+def verify(worked: Worked, request: Request, context: Context) -> dict:
+    """The three checks for what a department returned for a request."""
     if worked.proposal is None:
         return {
             "format": worked.held_reason,
@@ -63,15 +67,19 @@ def verify(worked: Worked, message: str, context: Context) -> dict:
 
     return {
         "format": None,
-        "grounded": grounded(worked.proposal, message, context.today),
-        "sense": sense(worked.proposal, message, context.models["judge"], context.today),
+        "grounded": grounded(worked.proposal, request.message, context.today, request.customer_id),
+        "sense": sense(worked.proposal, request.message, context.models["judge"], context.today),
     }
 
 
-def grounded(proposal: Proposal, message: str, today: date) -> Check:
+def grounded(
+    proposal: Proposal, message: str, today: date, customer_id: str | None = None
+) -> Check:
+    """`customer_id` is the customer the request is from, when the channel knows it."""
     problems = [
         *_unmatched_ids(proposal),
-        *_playbook_problems(proposal, message, today),
+        *_field_report_problems(proposal, message, today),
+        *_invoice_problems(proposal, message, customer_id),
         *_commitment_problems(proposal, message),
     ]
 
@@ -108,7 +116,7 @@ def _unmatched_ids(proposal: Proposal) -> list[str]:
     ]
 
 
-def _playbook_problems(proposal: Proposal, message: str, today: date) -> list[str]:
+def _field_report_problems(proposal: Proposal, message: str, today: date) -> list[str]:
     fields = proposal.fields
 
     if not isinstance(fields, FieldReport):
@@ -138,6 +146,43 @@ def _playbook_problems(proposal: Proposal, message: str, today: date) -> list[st
     ]
 
 
+# The invoice must be the asking customer's own, and named by the customer's words. Without
+# such words it may be named only when it is the only invoice the customer has.
+def _invoice_problems(proposal: Proposal, message: str, customer_id: str | None) -> list[str]:
+    fields = proposal.fields
+
+    if not isinstance(fields, InvoiceDispute):
+        return []
+
+    invoice = records.lookup("billing", "invoices", fields.invoice_id)
+
+    if invoice is None:
+        return []
+
+    owner, quote = invoice["customer_id"], fields.invoice_quote
+    on_record = len(records.list_records("billing", "invoices", owner))
+    problems = []
+
+    if customer_id is not None and owner != customer_id:
+        problems.append(
+            f"Invoice {fields.invoice_id} belongs to customer {owner}, not {customer_id}."
+        )
+
+    if quote is None and on_record > 1:
+        problems.append(
+            f"Invoice {fields.invoice_id} is named without the customer's words that identify "
+            f"it, and the customer has {on_record} invoices. Give those words in invoice_quote, "
+            "or leave invoice_id empty and ask which invoice is meant."
+        )
+
+    if quote is not None and not _appears(quote, message):
+        problems.append(
+            f"The words “{quote}” that identify invoice {fields.invoice_id} are not in the message."
+        )
+
+    return problems
+
+
 def _quoted(quote: str, message: str, wanted_digits: str) -> bool:
     return _appears(quote, message) and wanted_digits != "" and wanted_digits in _digits(quote)
 
@@ -145,7 +190,7 @@ def _quoted(quote: str, message: str, wanted_digits: str) -> bool:
 def _visit_date_problems(fields: FieldReport, message: str, today: date) -> list[str]:
     visit, quote = fields.visit_date, fields.visit_date_quote
 
-    if quote is None and visit == today:
+    if visit is None or (quote is None and visit == today):
         return []
 
     if quote is None:
@@ -173,33 +218,25 @@ def _someone_elses_asset(fields: FieldReport) -> list[str]:
 
 
 def _commitment_problems(proposal: Proposal, message: str) -> list[str]:
-    scope = [
-        record
-        for collection in records.collections(proposal.department)
-        for record in records.list_records(proposal.department, collection, None)
-    ]
-
     return [
         problem
         for commitment in proposal.commitments
-        for problem in _commitment_problem(commitment, proposal.draft, message, scope)
+        for problem in _commitment_problem(commitment, proposal, message)
     ]
 
 
-def _commitment_problem(
-    commitment: Commitment, draft: str, message: str, scope: list[dict]
-) -> list[str]:
+def _commitment_problem(commitment: Commitment, proposal: Proposal, message: str) -> list[str]:
     words = commitment.words
     in_draft = (
         []
-        if _appears(words, draft)
+        if _appears(words, proposal.draft)
         else [f"“{words}” is listed as a commitment but is not in the draft."]
     )
 
-    return [*in_draft, *_sourced(commitment, message, scope)]
+    return [*in_draft, *_sourced(commitment, message, proposal.department)]
 
 
-def _sourced(commitment: Commitment, message: str, scope: list[dict]) -> list[str]:
+def _sourced(commitment: Commitment, message: str, department: str) -> list[str]:
     words, source = commitment.words, commitment.source
 
     if commitment.type == "legal":
@@ -208,21 +245,59 @@ def _sourced(commitment: Commitment, message: str, scope: list[dict]) -> list[st
     if source == "message":
         return [] if _appears(words, message) else [f"“{words}” is not in the message."]
 
-    record = next((record for record in scope if record["id"] == source), None)
+    # A usage record has its customer's ID, so one ID can name two records.
+    named = [
+        (collection, record)
+        for collection in records.collections(department)
+        for record in records.list_records(department, collection, None)
+        if record["id"] == source
+    ]
 
-    if record is None:
+    if not named:
         return [f"Record {source} is not in the records."]
 
     text = _normalized(words)
     found = any(
-        _mentions(text, rendering) for value in record.values() for rendering in _renderings(value)
+        _mentions(text, rendering)
+        for collection, record in named
+        for field, value in _facts(collection, record)
+        for rendering in _renderings(field, value)
     )
 
     return [] if found else [f"“{words}” is not in record {source}."]
 
 
-# The ways a record's value may be written in a draft.
-def _renderings(value: object) -> list[str]:
+# A record's facts as its tool row shows them. An invoice row also shows the price in the
+# customer's tariff record and what the meter recorded that month, so a draft may give the
+# invoice as the source of either.
+def _facts(collection: str, record: dict) -> list[tuple[str, object]]:
+    if collection != "invoices":
+        return list(record.items())
+
+    customer = records.lookup("billing", "customers", record["customer_id"]) or {}
+    tariff = records.lookup("billing", "tariffs", customer.get("tariff")) or {}
+    usage = records.lookup("billing", "usage", record["customer_id"]) or {}
+
+    return [
+        *record.items(),
+        ("price_per_kwh_eur", tariff.get("price_per_kwh_eur")),
+        ("metered", (usage.get("months") or {}).get(record["period"])),
+    ]
+
+
+# The ways a record's value may be written in a draft. A usage record's values are kWh by
+# period, such as {"2026-10": 268}.
+def _renderings(field: str, value: object) -> list[str]:
+    if isinstance(value, dict):
+        return [
+            rendering
+            for period, kwh in value.items()
+            for rendering in (*_period_renderings(period), *_renderings(period, kwh))
+        ]
+
+    if field == PERIOD_FIELD:
+        return _period_renderings(value)
+
     if isinstance(value, bool):
         return []
 
@@ -244,6 +319,20 @@ def _renderings(value: object) -> list[str]:
         return [_normalized(value)] if written is None else _date_renderings(written)
 
     return []
+
+
+# A period such as "2026-09" as a draft may write it: "September 2026", "sept 2026",
+# "09-2026". A month without its year is not enough: it fits every year.
+def _period_renderings(period: str) -> list[str]:
+    year, month = period.split("-")
+    english, dutch = MONTH_NAMES[int(month) - 1]
+    numeric = [
+        period,
+        *(number + separator + year for number in (month, str(int(month))) for separator in "-/"),
+    ]
+    with_year = [f"{name} {year}" for name in (*english, *dutch)]
+
+    return _unique([*numeric, *with_year])
 
 
 def _date(value: str) -> date | None:

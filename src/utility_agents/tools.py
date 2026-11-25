@@ -93,7 +93,7 @@ def _file_proposal(arguments: dict, context: Context) -> proposal.Proposal:
     if filed.kind == "needs_attention":
         return filed
 
-    problems = verifier.grounded(filed, context.message, context.today)
+    problems = verifier.grounded(filed, context.message, context.today, context.customer_id)
 
     if problems is not None:
         raise ToolError(

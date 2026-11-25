@@ -11,7 +11,7 @@ from utility_agents.proposal import (
     Proposal,
     Reading,
 )
-from utility_agents.work import Context, Worked
+from utility_agents.work import Context, Request, Worked
 
 TODAY = date(2026, 11, 24)
 MESSAGE = utility_agents.records.request("F-002")["message"]
@@ -35,13 +35,14 @@ PROPOSAL = Proposal(
         readings=[Reading(value=9876.0, unit="kwh", quote="Reading 9,876 kWh")],
     ),
 )
+REQUEST = Request("F-002", "field_app", None, MESSAGE)
 DISPUTE = PROPOSAL.model_copy(
     update={
         "department": "billing",
         "playbook": "invoice_dispute",
         "kind": "reply",
         "draft": "Invoice INV-3002 is €396.80, due 30 November. We check the estimated reading.",
-        "fields": InvoiceDispute(invoice_id="INV-3002", outcome="escalate"),
+        "fields": InvoiceDispute(invoice_id=None, outcome="escalate"),
     }
 )
 
@@ -249,7 +250,7 @@ def test_the_judge_sees_only_the_message_and_the_proposal_on_its_own_model_and_n
 def test_a_held_request_fails_format_and_a_failed_judge_request_fails_sense(replay):
     held = Worked(held_reason="No proposal.")
 
-    assert verifier.verify(held, MESSAGE, Context(today=TODAY, models={})) == {
+    assert verifier.verify(held, REQUEST, Context(today=TODAY, models={})) == {
         "format": "No proposal.",
         "grounded": "There is no proposal to check.",
         "sense": "There is no proposal to check.",
@@ -259,7 +260,7 @@ def test_a_held_request_fails_format_and_a_failed_judge_request_fails_sense(repl
 
     checks = verifier.verify(
         Worked(proposal=PROPOSAL),
-        MESSAGE,
+        REQUEST,
         Context(today=TODAY, models={"judge": "claude-haiku-5-5"}),
     )
 

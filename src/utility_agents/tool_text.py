@@ -3,7 +3,8 @@ record, `- ` and columns joined by ` | `, `label: value`, and `none` for a missi
 stand next to IDs. What has one right answer is worked out here, so the model reads it instead
 of deriving it, and a warning in capitals follows the value it is about, as tellent writes
 `, OVERDUE`: a month billed twice, an amount that is not the kWh at the tariff's price, billed
-kWh the meter did not record, and an open invoice past its due date.
+kWh the meter did not record, and an open invoice past its due date. A fact that comes from
+another record than the row's own names that record, so the model can give it as its source.
 """
 
 from datetime import date
@@ -156,9 +157,12 @@ def _metered(invoice: dict) -> str:
         return ", no meter usage on record"
 
     if recorded[0] == invoice["kwh_billed"]:
-        return ", the meter recorded the same"
+        return f", the meter recorded the same (usage record {invoice['customer_id']})"
 
-    return f", NOT WHAT THE METER RECORDED ({recorded[0]} kWh)"
+    return (
+        f", NOT WHAT THE METER RECORDED ({recorded[0]} kWh in usage record "
+        f"{invoice['customer_id']})"
+    )
 
 
 def _priced(invoice: dict) -> str:

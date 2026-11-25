@@ -110,7 +110,7 @@ def _decide(request: Request, context: Context) -> dict:
     worked, playbook, steps = _work(routed, request.id, context)
     filed = worked.proposal
     checks, verify_step = _traced(
-        "verifier", lambda: verifier.verify(worked, request.message, context), _checks_text
+        "verifier", lambda: verifier.verify(worked, request, context), _checks_text
     )
     raised = flags.raised(_concerns(routed, filed), request.channel, request.customer_id)
     conditions = gate.Conditions(

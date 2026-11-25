@@ -32,8 +32,9 @@ class Handoff:
 @dataclass(frozen=True)
 class Context:
     """What a department works under: the day, the model of every role and the log directory,
-    and for one request its ID, playbook, department and message. `mode` is `propose` for the
-    department that files the proposal and `consult` for one that only answers a question."""
+    and for one request its ID, playbook, department, message and the customer it is from.
+    `mode` is `propose` for the department that files the proposal and `consult` for one that
+    only answers a question."""
 
     today: date
     models: dict[str, str]
@@ -42,6 +43,7 @@ class Context:
     playbook: str = ""
     department: str = ""
     message: str = ""
+    customer_id: str | None = None
     mode: str = "propose"
     consults_left: int = 0
 

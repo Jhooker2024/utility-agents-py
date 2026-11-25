@@ -140,7 +140,7 @@ def test_a_customers_message_goes_straight_to_billing_with_the_customer_known_by
         summary="Customer questions the October amount.",
         draft="A colleague will check your October invoice and get back to you.",
         kind="needs_attention",
-        fields={"invoice_id": "INV-3001", "outcome": "escalate"},
+        fields={"invoice_id": None, "invoice_quote": None, "outcome": "escalate"},
     )
 
     replay.sequence([tool_use("file_proposal", dispute), verdict(True)])
