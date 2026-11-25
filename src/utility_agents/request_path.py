@@ -50,7 +50,7 @@ def request(request_id: str) -> Request:
     if stored is None:
         raise UnknownRequest(f"No request has ID {request_id}.")
 
-    return Request(stored["id"], stored["channel"], stored["customer_id"], stored["message"])
+    return Request(stored["id"], stored["channel"], stored.get("customer_id"), stored["message"])
 
 
 def new_request(channel: str, message: str, customer_id: str | None) -> Request:
