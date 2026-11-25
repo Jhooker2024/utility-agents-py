@@ -903,6 +903,7 @@ source = { editable = "." }
 dependencies = [
     { name = "langchain-anthropic" },
     { name = "pydantic" },
+    { name = "pyyaml" },
 ]
 
 [package.dev-dependencies]
@@ -915,6 +916,7 @@ dev = [
 requires-dist = [
     { name = "langchain-anthropic", specifier = ">=1.7.12" },
     { name = "pydantic", specifier = ">=2.14.4" },
+    { name = "pyyaml", specifier = ">=6.0" },
 ]
 
 [package.metadata.requires-dev]

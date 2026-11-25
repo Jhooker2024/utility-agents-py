@@ -8,7 +8,7 @@ kWh the meter did not record, and an open invoice past its due date.
 
 from datetime import date
 
-from utility_agents import records
+from utility_agents.records import Match, list_records, lookup
 from utility_agents.text import day, decimals, month, words
 
 ROW_PREFIX = "- "
@@ -29,7 +29,7 @@ def listed(collection: str, found: list[dict], today: date) -> str:
     return _list(LABELS[collection], [_row(collection, record, today) for record in found])
 
 
-def customers(matches: list[records.Match]) -> str:
+def customers(matches: list[Match]) -> str:
     """Customers found by a search, each with their meters and cables."""
     return _list("customers", [_customer_row(match.customer, match.assets) for match in matches])
 
@@ -40,7 +40,7 @@ def _list(label: str, rows: list[str]) -> str:
 
 def _row(collection: str, record: dict, today: date) -> str:
     if collection == "customers":
-        assets = records.list_records("field_operations", "assets", record["id"])
+        assets = list_records("field_operations", "assets", record["id"])
 
         return _customer_row(record, assets)
 
@@ -138,7 +138,7 @@ def _months(by_month: dict | None) -> str:
 def _twice(invoice: dict) -> str:
     others = [
         other["id"]
-        for other in records.list_records("billing", "invoices", invoice["customer_id"])
+        for other in list_records("billing", "invoices", invoice["customer_id"])
         if other["period"] == invoice["period"] and other["id"] != invoice["id"]
     ]
 
@@ -148,7 +148,7 @@ def _twice(invoice: dict) -> str:
 def _metered(invoice: dict) -> str:
     recorded = [
         usage["months"][invoice["period"]]
-        for usage in records.list_records("billing", "usage", invoice["customer_id"])
+        for usage in list_records("billing", "usage", invoice["customer_id"])
         if (usage.get("months") or {}).get(invoice["period"]) is not None
     ]
 
@@ -162,8 +162,8 @@ def _metered(invoice: dict) -> str:
 
 
 def _priced(invoice: dict) -> str:
-    customer = records.lookup("billing", "customers", invoice["customer_id"])
-    tariff = records.lookup("billing", "tariffs", customer["tariff"])
+    customer = lookup("billing", "customers", invoice["customer_id"])
+    tariff = lookup("billing", "tariffs", customer["tariff"])
     expected = round(invoice["kwh_billed"] * tariff["price_per_kwh_eur"], 2)
     rate = decimals(tariff["price_per_kwh_eur"], 2)
     price = f"€{rate} per kWh, the price in tariff record {tariff['id']}"
@@ -182,7 +182,7 @@ def _overdue(invoice: dict, today: date) -> str:
 
 
 def _owner(customer_id: str | None) -> str:
-    customer = records.lookup("billing", "customers", customer_id)
+    customer = lookup("billing", "customers", customer_id)
 
     if customer is None:
         return _text(customer_id)

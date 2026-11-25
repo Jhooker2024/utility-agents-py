@@ -15,7 +15,7 @@ The playbooks are read from `playbooks` when the module loads. Each file's `## C
 is the playbook's dated history for staff and never reaches the prompt.
 """
 
-from dataclasses import replace
+import dataclasses
 
 from langchain_core.messages import BaseMessage, HumanMessage, ToolMessage
 
@@ -43,7 +43,7 @@ PLAYBOOKS = {playbook: _playbook_text(playbook) for playbook in proposal.PLAYBOO
 def run(handoff: Handoff, context: Context) -> Worked:
     """Works a handoff under `context`, which names the request, the playbook, the day and
     the models. Returns the proposal or the reason the request is held."""
-    context = replace(
+    context = dataclasses.replace(
         context,
         department=proposal.department(context.playbook),
         message=handoff.message,
@@ -56,7 +56,7 @@ def run(handoff: Handoff, context: Context) -> Worked:
 
 def consult(department: str, question: str, context: Context) -> str:
     """The answer of `department` to another department's question."""
-    context = replace(context, department=department, mode="consult")
+    context = dataclasses.replace(context, department=department, mode="consult")
     worked = _loop(context, _consult_prompt(context), prompts.evidence(question))
 
     if worked.answer is None:
@@ -96,7 +96,9 @@ def _loop(context: Context, system: str, text: str) -> Worked:
                 corrected = True
 
             if call["name"] == ASK_DEPARTMENT.name:
-                context = replace(context, consults_left=max(context.consults_left - 1, 0))
+                context = dataclasses.replace(
+                    context, consults_left=max(context.consults_left - 1, 0)
+                )
 
             messages += [reply, _tool_message(call, result, failure)]
         elif stop_reason == "end_turn" and context.mode == "consult":

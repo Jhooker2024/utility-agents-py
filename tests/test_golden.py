@@ -10,7 +10,7 @@ from datetime import date
 from functools import partial
 from pathlib import Path
 
-from tests.support import replay as responses
+from tests.support.replay import text
 from utility_agents import (
     chief_of_staff,
     department,
@@ -33,7 +33,7 @@ MESSAGE = (
 )
 REFUSED = (400, {"error": "golden"})
 REFUSED_BODY_IN_ELIXIR = '%{"error" => "golden"}'
-UNREADABLE = (200, responses.text("no json"))
+UNREADABLE = (200, text("no json"))
 REPORT = Proposal(
     request_id="G-1",
     department="field_operations",

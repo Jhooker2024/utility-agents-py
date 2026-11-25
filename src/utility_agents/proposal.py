@@ -14,8 +14,7 @@ from typing import Literal, NamedTuple
 
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
-from utility_agents import records, schema
-from utility_agents.flags import ConcernName
+from utility_agents import flags, records, schema
 
 Department = Literal["billing", "field_operations", "hr"]
 Kind = Literal["reply", "record_update", "needs_attention"]
@@ -90,7 +89,7 @@ class Shared(Entry):
     draft: str = Field(min_length=MIN_DRAFT)
     unconfirmed: str | None = None
     commitments: list[Commitment] = []
-    concerns: list[ConcernName] = []
+    concerns: list[flags.ConcernName] = []
     kind: Kind
     transfer_to: TransferTarget | None = None
 

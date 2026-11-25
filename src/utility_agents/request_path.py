@@ -12,10 +12,10 @@ works it once, with what was tried, and only its proposal becomes the decision. 
 to the trace and the decision to the log.
 """
 
+import dataclasses
 import secrets
 import time
 from collections.abc import Callable
-from dataclasses import replace
 from datetime import UTC, date, datetime
 from pathlib import Path
 
@@ -173,7 +173,9 @@ def _work(
     tried = f"The {filed.department} agent passed it on: {filed.summary}"
     transfer = {"step": "transfer", "result": filed.transfer_to, "milliseconds": 0}
     playbook = proposal.request_playbook(filed.transfer_to)
-    worked, more_steps = _run(playbook, replace(routed.handoff, tried=tried), request_id, context)
+    worked, more_steps = _run(
+        playbook, dataclasses.replace(routed.handoff, tried=tried), request_id, context
+    )
 
     return worked, playbook, [*steps, transfer, *more_steps]
 
@@ -181,7 +183,7 @@ def _work(
 def _run(
     playbook: str, handoff: Handoff, request_id: str, context: Context
 ) -> tuple[Worked, list[dict]]:
-    working = replace(context, request_id=request_id, playbook=playbook)
+    working = dataclasses.replace(context, request_id=request_id, playbook=playbook)
     worked, step = _traced(
         f"department:{playbook}", lambda: department.run(handoff, working), _worked_text
     )
