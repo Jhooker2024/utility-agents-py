@@ -1,0 +1,22 @@
+[
+  {"id": "INV-3001", "customer_id": "C-1002", "period": "2026-10", "kwh_billed": 412, "amount_eur": 131.84, "status": "open", "due_date": "2026-11-30"},
+  {"id": "INV-3002", "customer_id": "C-1005", "period": "2026-10", "kwh_billed": 1240, "amount_eur": 396.80, "status": "open", "due_date": "2026-11-30", "note": "Estimated reading; the meter sent no data for October."},
+  {"id": "INV-3003", "customer_id": "C-1008", "period": "2026-10", "kwh_billed": 305, "amount_eur": 97.60, "status": "paid", "due_date": "2026-11-15"},
+  {"id": "INV-3004", "customer_id": "C-1008", "period": "2026-09", "kwh_billed": 298, "amount_eur": 95.36, "status": "paid", "due_date": "2026-10-15"},
+  {"id": "INV-3005", "customer_id": "C-1009", "period": "2026-10", "kwh_billed": 287, "amount_eur": 91.84, "status": "open", "due_date": "2026-11-30"},
+  {"id": "INV-3006", "customer_id": "C-1009", "period": "2026-09", "kwh_billed": 287, "amount_eur": 91.84, "status": "paid", "due_date": "2026-10-15"},
+  {"id": "INV-3007", "customer_id": "C-1001", "period": "2026-09", "kwh_billed": 214, "amount_eur": 68.48, "status": "paid", "due_date": "2026-10-15"},
+  {"id": "INV-3008", "customer_id": "C-1001", "period": "2026-10", "kwh_billed": 268, "amount_eur": 85.76, "status": "open", "due_date": "2026-11-30"},
+  {"id": "INV-3009", "customer_id": "C-1003", "period": "2026-09", "kwh_billed": 231, "amount_eur": 73.92, "status": "paid", "due_date": "2026-10-15"},
+  {"id": "INV-3010", "customer_id": "C-1003", "period": "2026-10", "kwh_billed": 247, "amount_eur": 79.04, "status": "open", "due_date": "2026-11-30"},
+  {"id": "INV-3011", "customer_id": "C-1004", "period": "2026-09", "kwh_billed": 380, "amount_eur": 106.40, "status": "paid", "due_date": "2026-10-15"},
+  {"id": "INV-3012", "customer_id": "C-1004", "period": "2026-10", "kwh_billed": 351, "amount_eur": 98.28, "status": "open", "due_date": "2026-11-30"},
+  {"id": "INV-3013", "customer_id": "C-1006", "period": "2026-09", "kwh_billed": 189, "amount_eur": 60.48, "status": "paid", "due_date": "2026-10-15"},
+  {"id": "INV-3014", "customer_id": "C-1006", "period": "2026-10", "kwh_billed": 205, "amount_eur": 65.60, "status": "open", "due_date": "2026-11-30"},
+  {"id": "INV-3015", "customer_id": "C-1007", "period": "2026-09", "kwh_billed": 1420, "amount_eur": 355.00, "status": "paid", "due_date": "2026-10-15"},
+  {"id": "INV-3016", "customer_id": "C-1007", "period": "2026-10", "kwh_billed": 1515, "amount_eur": 378.75, "status": "open", "due_date": "2026-11-30"},
+  {"id": "INV-3017", "customer_id": "C-1010", "period": "2026-09", "kwh_billed": 162, "amount_eur": 45.36, "status": "paid", "due_date": "2026-10-15"},
+  {"id": "INV-3018", "customer_id": "C-1010", "period": "2026-10", "kwh_billed": 233, "amount_eur": 65.24, "status": "open", "due_date": "2026-11-30"},
+  {"id": "INV-3019", "customer_id": "C-1002", "period": "2026-09", "kwh_billed": 286, "amount_eur": 91.52, "status": "paid", "due_date": "2026-10-15"},
+  {"id": "INV-3020", "customer_id": "C-1005", "period": "2026-09", "kwh_billed": 302, "amount_eur": 96.64, "status": "paid", "due_date": "2026-10-15"}
+]

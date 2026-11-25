@@ -1,0 +1,6 @@
+[
+  {"id": "fixed", "price_per_kwh_eur": 0.32},
+  {"id": "variable", "price_per_kwh_eur": 0.30},
+  {"id": "dynamic", "price_per_kwh_eur": 0.28},
+  {"id": "business", "price_per_kwh_eur": 0.25}
+]

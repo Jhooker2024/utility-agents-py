@@ -1,0 +1,9 @@
+{
+  "checks": {
+    "seed data, playbooks and golden file identical to the Elixir project": {"passes": true, "check": "diff -r and cmp against /Users/justinhooker/code/utility-agents"},
+    "prompt texts identical to the Elixir recording": {"passes": true, "check": "scratchpad make_prompts.py asserts each literal evaluates to the recorded text"},
+    "golden test against the Elixir recording": {"passes": false, "check": "uv run pytest tests/test_golden.py"}
+  },
+  "modules": {},
+  "flows": {}
+}

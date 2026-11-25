@@ -1,0 +1,7 @@
+[
+  {"id": "P-01", "title": "Annual leave", "text": "Full time is 40 hours over 5 days a week. Full-time employees get 25 days of paid leave a year, pro rata for part-time. Up to 5 unused days carry over to the next year and expire on 1 July. Leave requests go to your manager at least 2 weeks ahead."},
+  {"id": "P-02", "title": "Remote work", "text": "Office staff may work from home up to 2 days a week with their manager's agreement. Field technicians and control room staff are not eligible. The home-office allowance is 2 euro per remote day."},
+  {"id": "P-03", "title": "Expenses", "text": "Expenses are claimed in the HR portal within 30 days, with a receipt. Car travel for work is reimbursed at 0.23 euro per km. Meals during field shifts over 10 hours are reimbursed up to 15 euro."},
+  {"id": "P-04", "title": "On-call and overtime", "text": "On-call duty is paid at 3 euro an hour. Overtime is paid at 150 percent on weekdays and 200 percent on Sundays and public holidays, or taken as time off in lieu at the same rate."},
+  {"id": "P-05", "title": "Sick leave", "text": "Report sick to your manager before 9:00 on the first day. From the third consecutive day the company doctor contacts you. Salary is paid in full for the first year of illness."}
+]

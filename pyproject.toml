@@ -1,0 +1,36 @@
+[project]
+name = "utility-agents"
+version = "0.1.0"
+description = "Utility requests through one path: a front door, department agents, three checks and a gate"
+readme = "README.md"
+authors = [{ name = "Justin Hooker" }]
+requires-python = ">=3.12"
+dependencies = [
+    "langchain-anthropic>=1.7.12",
+    "pydantic>=2.14.4",
+    "pyyaml>=6.0",
+]
+
+[project.scripts]
+utility-agents = "utility_agents.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.13.10,<0.14.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+    "ruff>=0.17.6",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["live: calls the real API and costs money; run with `-m live`"]
+addopts = "-m 'not live'"
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]

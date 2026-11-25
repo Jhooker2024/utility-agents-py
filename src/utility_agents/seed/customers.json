@@ -1,0 +1,12 @@
+[
+  {"id": "C-1001", "name": "Anna de Vries", "address": "Lindenlaan 12, Zwolle", "tariff": "fixed", "email": "anna.devries@example.com"},
+  {"id": "C-1002", "name": "Bram Jansen", "address": "Kerkstraat 4, Deventer", "tariff": "fixed", "email": "bram.jansen@example.com"},
+  {"id": "C-1003", "name": "Chantal Smit", "address": "Molenweg 33, Kampen", "tariff": "fixed", "email": "chantal.smit@example.com"},
+  {"id": "C-1004", "name": "Dirk Bakker", "address": "Havenkade 8, Zwolle", "tariff": "dynamic", "email": "dirk.bakker@example.com"},
+  {"id": "C-1005", "name": "Esra Yilmaz", "address": "Schoolstraat 21, Hattem", "tariff": "fixed", "email": "esra.yilmaz@example.com"},
+  {"id": "C-1006", "name": "Femke Visser", "address": "Dorpsweg 2, Dalfsen", "tariff": "fixed", "email": "femke.visser@example.com"},
+  {"id": "C-1007", "name": "Gerrit Mulder", "address": "Industrieweg 50, Zwolle", "tariff": "business", "email": "g.mulder@example.com"},
+  {"id": "C-1008", "name": "Hanna Bos", "address": "Veldweg 17, Raalte", "tariff": "fixed", "email": "hanna.bos@example.com"},
+  {"id": "C-1009", "name": "Ivo Peters", "address": "Stationsplein 3, Kampen", "tariff": "fixed", "email": "ivo.peters@example.com"},
+  {"id": "C-1010", "name": "Joyce Hendriks", "address": "Beukenlaan 9, Ommen", "tariff": "dynamic", "email": "joyce.hendriks@example.com"}
+]

@@ -1,0 +1,43 @@
+# Where the trace, the decisions and the notifications are written.
+log_directory: logs
+
+# One model per agent, chosen by tests: `utility-agents eval --model <id>` compares models.
+models:
+  billing: claude-sonnet-5-5
+  field_operations: claude-sonnet-5-5
+  hr: claude-sonnet-5-5
+  chief_of_staff: claude-haiku-5-5
+  judge: claude-haiku-5-5
+
+# A request from one of these channels goes straight to its playbook, with no model call.
+channel_routes:
+  billing_portal: invoice_dispute
+  field_app: field_report
+  hr_portal: policy_question
+
+# How far each playbook may go on its own: crawl, walk or run.
+stages:
+  invoice_dispute: crawl
+  field_report: walk
+  policy_question: run
+
+# Automatic actions per day, over all playbooks; past it they need one click.
+daily_cap: 50
+
+eval:
+  pass: 0.8
+  promote: 0.9
+  concurrency: 4
+
+# US dollars per million tokens.
+prices:
+  claude-opus-5-5: {input: 4.0, output: 20.0, cache_write: 5.0, cache_read: 0.2}
+  claude-sonnet-5-5: {input: 2.0, output: 10.0, cache_write: 2.5, cache_read: 0.1}
+  claude-haiku-5-5: {input: 0.1, output: 0.5, cache_write: 0.125, cache_read: 0.01}
+
+anthropic:
+  url: https://api.anthropic.com
+  version: "2026-10-21"
+  max_tokens: 16000
+  # Seconds before the first retry; each later retry waits twice as long.
+  retry_delay_seconds: 1

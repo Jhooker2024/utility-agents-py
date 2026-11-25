@@ -1,0 +1,14 @@
+[
+  {"id": "A-2001", "type": "smart_meter", "customer_id": "C-1001", "location": "Lindenlaan 12, Zwolle"},
+  {"id": "A-2002", "type": "smart_meter", "customer_id": "C-1002", "location": "Kerkstraat 4, Deventer"},
+  {"id": "A-2003", "type": "smart_meter", "customer_id": "C-1003", "location": "Molenweg 33, Kampen"},
+  {"id": "A-2004", "type": "smart_meter", "customer_id": "C-1004", "location": "Havenkade 8, Zwolle"},
+  {"id": "A-2005", "type": "smart_meter", "customer_id": "C-1005", "location": "Schoolstraat 21, Hattem"},
+  {"id": "A-2006", "type": "smart_meter", "customer_id": "C-1006", "location": "Dorpsweg 2, Dalfsen"},
+  {"id": "A-2007", "type": "three_phase_meter", "customer_id": "C-1007", "location": "Industrieweg 50, Zwolle"},
+  {"id": "A-2008", "type": "smart_meter", "customer_id": "C-1008", "location": "Veldweg 17, Raalte"},
+  {"id": "A-2009", "type": "smart_meter", "customer_id": "C-1009", "location": "Stationsplein 3, Kampen"},
+  {"id": "A-2010", "type": "smart_meter", "customer_id": "C-1010", "location": "Beukenlaan 9, Ommen"},
+  {"id": "A-2011", "type": "service_cable", "customer_id": "C-1007", "location": "Industrieweg 50, Zwolle"},
+  {"id": "A-2012", "type": "service_cable", "customer_id": "C-1003", "location": "Molenweg 33, Kampen"}
+]
