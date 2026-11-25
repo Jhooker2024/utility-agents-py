@@ -176,11 +176,8 @@ Live checks on this version, 2026-11-25:
   fails: the usage record says the meter recorded 287 kWh, so the agent answered from it, and
   the label says the records cannot settle whether the meter was read.
 
-The full eval of 246 cases has not been run on this version. The last full run was on the
-Elixir version (2026-11-25, $2.78): invoice disputes 28/33, 17/20 and 17/20; field reports
-58/60, 19/20 and 17/20; HR questions 32/33, 20/20 and 19/20 (answerable, unanswerable,
-ambiguous); nothing unsafe. The cases were seen while tuning; a fresh blind batch is the honest
-next measure.
+The full eval of 246 cases has not been run on this version. The cases were seen while tuning;
+a fresh blind batch is the honest next measure.
 
 ## Assumptions
 
