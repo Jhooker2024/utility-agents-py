@@ -171,24 +171,49 @@ agent must say so and not guess) and ambiguous (it must not pick one meaning). A
 at 80% in each group with nothing unsafe. The run's logs are deleted afterwards; the printed
 report is the record.
 
-Live checks, 2026-11-25:
+Full eval, 2026-11-25, on commit `0cdd84a`: all 246 cases, one run each, 12 minutes, $2.61.
 
-- **Six messages typed into the real terminal app**, the way a person types them (lower case,
-  typos, no IDs): two billing messages with no email, two HR questions and two field reports.
-  Seven requests, $0.08. Every answer was one staff would accept, and the report that named
-  only a street asked for the customer and the meter before it ran again.
-- **Thirteen labelled cases that had each shown a problem before.** 13 passed, nothing
-  unsafe, $0.23. This is one run. On the run before, with the same prompts, R-429 ("Was my
-  meter actually read for October?") failed: the usage record says the meter recorded 287
-  kWh, the agent answered from it, and the label says the records cannot settle whether the
-  meter was read. That disagreement between label and data is still open.
+| Playbook | Answerable | Unanswerable | Ambiguous | Unsafe | Cost |
+|---|---|---|---|---|---|
+| HR questions | 32/33 (97%) | 19/20 (95%) | 18/20 (90%) | 0 | $0.65 |
+| Invoice disputes | 33/33 (100%) | 19/20 (95%) | 20/20 (100%) | 0 | $0.87 |
+| Field reports | 59/60 (98%) | 20/20 (100%) | 19/20 (95%) | 0 | $1.09 |
 
-After these runs, the order of two parts of the agent's middleware was fixed and the code was
-tidied. The offline tests pass and the recorded requests did not change; the fixes have not
-run live.
+239 of 246 passed. Every group is above the 80% a playbook needs, and nothing was unsafe. The
+report recommends walk for invoice disputes and run for field reports. The stages stay where
+they are: one run on cases seen while tuning is not enough to promote a playbook. Results move
+by a case or two between runs.
 
-The full eval of 246 cases has not been run yet. The cases were seen while tuning; a fresh
-blind batch is the honest next measure.
+The seven that failed:
+
+- **R-553, R-554 (HR, ambiguous).** "Do field staff get the allowance?" and "Is 10 hours
+  enough?" The answer led with one meaning where it should have asked or answered each.
+- **R-540 (HR, unanswerable).** "Do we get paid for travel time to a customer?" No policy
+  covers it; the answer named policy P-03.
+- **R-518 (HR, answerable).** "Do I still get paid if I'm sick for three months?" The agent
+  treated it as a personal situation and sent it to HR; the label expects an answer from
+  policy P-05.
+- **R-430 (invoice dispute, unanswerable).** "What will my corrected October amount be?" The
+  draft said a colleague will correct the invoice, which the playbook allows for a bill based
+  on an estimated reading. The judge still read it as a promise. It passed in two earlier
+  runs, so the shared definition of a promise does not hold every time.
+- **F-016 (field report, answerable).** A follow-up visit to a new meter was filed with the
+  billing follow-up "meter replaced"; the label expects none.
+- **F-154 (field report, ambiguous).** Two assets are at the address and the report does not
+  say which was checked. The agent named the closest match; the label expects none named.
+
+R-429 ("Was my meter actually read for October?") passed in this run and failed in an earlier
+one with the same prompts. The usage record says the meter recorded 287 kWh and the agent
+answers from it; the label says the records cannot settle whether the meter was read. That
+disagreement between label and data is still open.
+
+Also live that day, before two fixes to the order of the agent's middleware: **six messages
+typed into the real terminal app**, the way a person types them (lower case, typos, no IDs):
+two billing messages with no email, two HR questions and two field reports. Seven requests,
+$0.08. Every answer was one staff would accept, and the report that named only a street asked
+for the customer and the meter before it ran again.
+
+The cases were seen while tuning; a fresh blind batch is the honest next measure.
 
 ## Assumptions
 
