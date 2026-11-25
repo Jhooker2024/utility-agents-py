@@ -19,13 +19,23 @@ repository. Update this file at every milestone.
   with replayed answers.
 - README written, without live numbers.
 
+## Live checks done (2026-11-25, with Justin's yes)
+
+- `uv` installed with Homebrew; `uv run ruff format --check`, `uv run ruff check` and
+  `uv run pytest` pass with it.
+- The six typed messages in the real terminal app: 7 requests, $0.0974. Every answer accepted;
+  the street-only field report asked for the customer and the meter.
+- The 13 cases that failed or were relabelled in the Elixir run: 12 pass, 0 unsafe, $0.1804.
+  R-429 still fails (the usage record shows 287 kWh for October, the label says the records
+  cannot settle whether the meter was read).
+
 ## Next
 
-1. Ask Justin: install `uv` on this Mac (`brew install uv`), and a yes for the live checks.
-2. Live, smallest first: the six typed messages in the real terminal app (about $0.10), then
-   the 13 cases that failed or were relabelled on 2026-11-25 (about $0.15), then the full eval
-   of 246 cases (about $2.80) only when those pass.
-3. Put the eval numbers, date and cost in the README. Run `/simplify` and the ship checks.
+- Justin decided on 2026-11-25: leave R-429 failing, and no full eval for now. The full eval
+  of 246 cases (about $2.80) is the one open done-criterion. Ask before running it.
+- A possible fix for R-429 that he did not choose: a code-made warning on an invoice whose
+  meter figure equals the month before's.
+- Never push or create a remote without his yes.
 
 ## Decisions
 
@@ -56,6 +66,4 @@ repository. Update this file at every milestone.
 
 ## Open
 
-- `uv` is not installed on this Mac. Work so far used a temporary copy in the session
-  scratchpad.
-- No live model call has been made.
+- Done-criterion 5 (full eval at 80% in every group, 0 unsafe) is not measured on this version.
