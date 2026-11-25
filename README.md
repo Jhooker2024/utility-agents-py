@@ -33,7 +33,8 @@ calls the levels crawl, walk and run.
 - Bill disputes: a person handles every one. They are about money, so they never go out alone.
 - Field reports: a routine update for the customer system goes ahead alone. Anything else
   waits for a person.
-- HR questions: an answer from the written policy goes out alone.
+- HR questions: a person approves each answer with one click. They went out alone until the
+  eval of 2026-11-25 showed three wrong answers that no check had caught.
 
 At every level a proposal waits for a person when a check fails, when the assistant asks for
 one, when a customer's message comes from someone who is not on record, or when the message
@@ -82,7 +83,7 @@ Three messages from a live run on 2026-11-25, typed the way people type:
 
 | Message | What the system did |
 |---|---|
-| An employee: "how many vacation days do i get if i only work 3 days a week" | Answered from the annual leave policy: 15 days, with a note to check the rounding with HR. Went out without a person. |
+| An employee: "how many vacation days do i get if i only work 3 days a week" | Answered from the annual leave policy: 15 days, with a note to check the rounding with HR. Went out without a person at the time; HR answers now wait for one click. |
 | A customer: "ello, i think i was doubled invoice for the october ..." | Found the customer by name and drafted a reply: one invoice for October, 268 kWh, €85.76, the same as the meter recorded. Waits for a person, as every bill dispute does. |
 | A technician: "veldweg 17 raalte. seal on the meter is broken and theres a wire going round it ..." | Filed suspected tampering for the right customer and meter. Waits for a person, and told revenue protection, the duty desk and billing. |
 
@@ -230,7 +231,8 @@ request ─► chief_of_staff ─► department ─► (transfer?) ─► verifi
   second hand-over is held for a person. A field report is never handed over.
 - `gate`: crawl holds everything, walk lets a CRM update act alone and makes replies one click,
   run acts alone. Today field reports are at walk, invoice disputes at crawl (and never act
-  alone) and HR questions at run. A stage that is missing or misspelled holds. Needs
+  alone) and HR questions at walk, so every HR answer needs one click. A stage that is missing
+  or misspelled holds. Needs
   attention, a failed check or any flag holds; a
   commitment, an unconfirmed fact, a hand-over or the daily cap of 50 makes it one click. A
   staff rejection of an automatic decision drops the playbook one stage for 30 days.
@@ -311,8 +313,8 @@ The next step is to address these, in this order:
    the meter was replaced on this visit.
 2. Settle the two places where the playbook contradicts itself (R-518, F-154), and give the
    test's judge a stricter form for a promise (R-430).
-3. Until that is measured on fresh cases, HR questions belong at walk, where every answer
-   needs one click, and not at run.
+3. Until that is measured on fresh cases, HR questions stay at walk, where every answer needs
+   one click. They were moved there from run on 2026-11-25 for this reason.
 
 R-429 ("Was my meter actually read for October?") passed in this run and failed in an earlier
 one with the same prompts. The usage record says the meter recorded 287 kWh and the agent

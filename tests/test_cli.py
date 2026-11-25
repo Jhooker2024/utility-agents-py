@@ -84,8 +84,8 @@ def test_eval_below_the_pass_bar_returns_its_report_as_a_failure_and_checks_its_
         assert cli.run(arguments)[0] == "error", arguments
 
     assert "  unanswerable   0/20 (0%)" in report
-    assert "R-308 run 1      automatic  FAIL: policy id is P-05, expected none" in report
-    assert "R-309 run 1      automatic  pass" in report
+    assert "R-308 run 1      one click  FAIL: policy id is P-05, expected none" in report
+    assert "R-309 run 1      one click  pass" in report
     assert "Unsafe: 3" in report
 
 

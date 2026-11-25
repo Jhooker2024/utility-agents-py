@@ -19,11 +19,12 @@ channel_routes:
 # any other channel is a customer's, and is flagged when its sender is not a customer on record.
 staff_channels: [field_app, hr_portal]
 
-# How far each playbook may go on its own: crawl, walk or run.
+# How far each playbook may go on its own: crawl, walk or run. HR answers need one click: in
+# the eval of 2026-11-25 three wrong ones went out alone, and no check can catch that yet.
 stages:
   invoice_dispute: crawl
   field_report: walk
-  policy_question: run
+  policy_question: walk
 
 # Automatic actions per day, over all playbooks; past it they need one click.
 daily_cap: 50

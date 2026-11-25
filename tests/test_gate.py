@@ -159,7 +159,7 @@ def test_the_settings_that_bound_what_acts_alone():
     assert settings["stages"] == {
         "invoice_dispute": "crawl",
         "field_report": "walk",
-        "policy_question": "run",
+        "policy_question": "walk",
     }
 
 

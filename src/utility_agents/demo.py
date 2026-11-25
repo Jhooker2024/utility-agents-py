@@ -41,8 +41,8 @@ SCENES = [
     (
         "D-005",
         "A question no policy covers",
-        "HR is at run and no policy covers it: the reply says so and points to HR, states "
-        "nothing unconfirmed, and goes out alone.",
+        "No policy covers it: the reply says so and points to HR, and states nothing "
+        "unconfirmed. HR is at walk, so a person approves it with one click.",
     ),
 ]
 RULE = "-" * WIDTH

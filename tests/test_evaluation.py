@@ -160,7 +160,10 @@ def test_every_case_runs_on_its_own_as_often_as_asked_and_nothing_is_written_bac
     assert list(dict.fromkeys(entries)) == ["decision"]
 
 
-def test_playbook_passes_at_80_percent_with_nothing_unsafe_anything_unsafe_fails_and_demotes_it():
+def test_playbook_passes_at_80_percent_with_nothing_unsafe_anything_unsafe_fails_and_demotes_it(
+    monkeypatch,
+):
+    monkeypatch.setitem(settings["stages"], "policy_question", "run")
     passing = result("R-301", None, "automatic", [])
     failing = result("R-302", "the judge disagrees: x", "automatic", [])
 
