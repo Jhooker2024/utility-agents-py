@@ -7,9 +7,9 @@ from datetime import date
 import pytest
 
 from tests.support.fixtures import field_report, invoice_dispute
-from tests.support.replay import tool_use, verdict
-from utility_agents import presenter, prompts, verifier
-from utility_agents.config import PACKAGE
+from tests.support.replay import end_turn, tool_use, verdict
+from utility_agents import department, presenter, prompts, verifier
+from utility_agents.config import PACKAGE, settings
 from utility_agents.proposal import (
     Commitment,
     FieldReport,
@@ -21,6 +21,7 @@ from utility_agents.proposal import (
 )
 from utility_agents.records import labels
 from utility_agents.request_path import handle, request
+from utility_agents.work import Context, Handoff
 
 TODAY = date(2026, 11, 25)
 NO_WORDS = (
@@ -247,3 +248,43 @@ def test_the_labels_that_disagreed_with_their_playbook_now_follow_it(request_id,
 
     assert label["fields"] == fields
     assert words in label["note"]
+
+
+READ = tool_use("get_record", {"collection": "assets", "id": "A-2002"})
+
+
+def test_a_proposal_filed_on_the_last_allowed_model_request_is_kept(replay):
+    report = field_report(draft="Loose neutral at meter A-2002 tightened.", fields={"readings": []})
+    replay.sequence([READ] * (department.MAX_TURNS - 1) + [tool_use("file_proposal", report)])
+
+    worked = department.run(REPORTED, working("field_report"))
+
+    assert department.MAX_TURNS == 8
+    assert len(replay.requests) == 8
+    assert worked.held_reason is None
+    assert worked.proposal.fields.customer_id == "C-1002"
+
+
+def test_a_nudged_reply_counts_as_one_of_the_eight_model_requests(replay):
+    replies = iter([end_turn("Done.")])
+    replay.respond(lambda _body: (200, next(replies, READ)))
+
+    worked = department.run(REPORTED, working("field_report"))
+
+    assert worked.held_reason == "No proposal after 8 model requests."
+    assert len(replay.requests) == 8
+    assert replay.requests[1]["messages"][-1] == {"role": "user", "content": department.NUDGE}
+
+
+REPORTED = Handoff(
+    message="Kerkstraat 4, C-1002, meter A-2002. Loose neutral, tightened. 19-11-2026.",
+    intent="field report",
+    tried="nothing yet",
+    customer_id=None,
+)
+
+
+def working(playbook: str) -> Context:
+    return Context(
+        today=date(2026, 11, 24), models=settings["models"], request_id="F-1", playbook=playbook
+    )

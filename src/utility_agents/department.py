@@ -3,10 +3,16 @@
 
 The agent asks the model, runs the tool it calls, sends the result back and repeats until the
 model files a proposal. Parallel tool use is off, so each reply holds at most one tool call.
-What bounds the agent is middleware, in the order a request passes it:
+What bounds the agent is middleware. Its order matters: before a model request the hooks
+run top to bottom, after a reply bottom to top.
 
   * `Recorder` (ours): every tool call becomes a step for the trace, and every reply's tokens
     are counted for the request's cost.
+  * `ProposalRules` (ours): the run ends when `file_proposal` succeeds. An invalid proposal, or
+    one the fact check fails, goes back once; a second failure holds the request. A reply that
+    ends without a proposal gets one nudge. It stands before the call limit, so a proposal
+    filed on the last allowed request is kept, and after it on the way back, so a nudged reply
+    is counted.
   * `ModelCallLimitMiddleware`: after `MAX_TURNS` model requests the request is held.
   * `ModelRetryMiddleware`: a request the API never worked is sent again; `model.retry` says
     which.
@@ -14,9 +20,6 @@ What bounds the agent is middleware, in the order a request passes it:
     the turns of one request reuse each other.
   * `OneStrictToolCall` (ours): strict tool schemas and no parallel tool use.
   * `ToolErrorMiddleware`: a `ToolError` goes back to the model as a tool error it can fix.
-  * `ProposalRules` (ours): the run ends when `file_proposal` succeeds. An invalid proposal, or
-    one the fact check fails, goes back once; a second failure holds the request. A reply that
-    ends without a proposal gets one nudge.
 
 Every department gets the read tools over its own records. A department filing a proposal also
 gets `ask_department` and its playbook's `file_proposal`. `consult` runs another department on
@@ -218,6 +221,7 @@ def _work(
             system_prompt=SystemMessage(content=[{"type": "text", "text": system}]),
             middleware=[
                 Recorder(model_name, collected),
+                *rules,
                 ModelCallLimitMiddleware(run_limit=MAX_TURNS, exit_behavior="error"),
                 ModelRetryMiddleware(
                     max_retries=model.MAX_RETRIES,
@@ -230,7 +234,6 @@ def _work(
                 AnthropicPromptCachingMiddleware(),
                 OneStrictToolCall(),
                 ToolErrorMiddleware(_told_to_the_model),
-                *rules,
             ],
         )
         state = agent.invoke({"messages": [HumanMessage(text)]}, {"recursion_limit": GRAPH_STEPS})
