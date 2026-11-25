@@ -3,14 +3,6 @@ concern with examples; the department agents and the chief of staff read the sam
 `PROMISE` defines a promise once: the eval judge reads it here and the billing agent reads the
 same words in its playbook."""
 
-
-def evidence(text: str) -> str:
-    """Text from outside, in message tags, with `<` and `>` escaped so it cannot close them."""
-    escaped = text.replace("<", "&lt;").replace(">", "&gt;")
-
-    return f"<message>\n{escaped}\n</message>"
-
-
 CONCERN_RULES = """\
 concerns: your judgment of who must hear about this message today. Each concern holds the \
 request for a person and tells the team that handles it. Name one when, reading the whole \
@@ -137,3 +129,10 @@ decision carries a note, the note says what a right proposal does and outweighs 
 Otherwise agrees is false. \
 Give the reason first, in one or two sentences.\
 """
+
+
+def evidence(text: str) -> str:
+    """Text from outside, in message tags, with `<` and `>` escaped so it cannot close them."""
+    escaped = text.replace("<", "&lt;").replace(">", "&gt;")
+
+    return f"<message>\n{escaped}\n</message>"

@@ -1,18 +1,17 @@
 import contextlib
-from datetime import date
 
 import anthropic
 import httpx
 import pytest
 from langchain_core.messages import AIMessage
 
-from tests.support.fixtures import hr_answer
+from tests.support.fixtures import hr_answer, working
 from tests.support.replay import end_turn, json_text, text, tool_use
 from utility_agents import department, model
 from utility_agents.config import settings
-from utility_agents.work import Context, Handoff, Worked
+from utility_agents.work import Handoff, Worked
 
-REQUEST = httpx.Request("POST", "https://api.anthropic.com/v1/messages")
+REQUEST = httpx.Request("POST", settings["anthropic"]["url"])
 
 
 FITS = {"reason": "Fits.", "sensible": True}
@@ -172,11 +171,4 @@ def connection_error(cause: Exception) -> anthropic.APIConnectionError:
 def agent_works() -> Worked:
     """One HR agent run on a short question."""
     handoff = Handoff("How many leave days?", "a question", "nothing yet", None)
-    context = Context(
-        today=date(2026, 11, 24),
-        models=settings["models"],
-        request_id="R-1",
-        playbook="policy_question",
-    )
-
-    return department.run(handoff, context)
+    return department.run(handoff, working("policy_question", "R-1"))

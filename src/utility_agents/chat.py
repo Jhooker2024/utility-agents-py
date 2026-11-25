@@ -48,10 +48,19 @@ def start() -> None:
         print("Utility agents. Use the arrow keys and Enter, or type a number.")
         choice = pick("What do you want to do?", MENU)
 
-        if choice == "quit":
-            return
-
-        RUNS[choice]()
+        match choice:
+            case "hr":
+                _hr()
+            case "billing":
+                _billing()
+            case "field_report":
+                _field_report()
+            case "demo":
+                _demo()
+            case "eval":
+                _eval()
+            case "quit":
+                return
 
 
 def _hr() -> None:
@@ -102,15 +111,6 @@ def _eval() -> None:
         print(evaluation.report(evaluation.run(playbook)))
 
     _pause()
-
-
-RUNS = {
-    "hr": _hr,
-    "billing": _billing,
-    "field_report": _field_report,
-    "demo": _demo,
-    "eval": _eval,
-}
 
 
 def _topics(heading: str, intro: str, topics: list[str]) -> str:

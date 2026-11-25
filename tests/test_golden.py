@@ -10,6 +10,7 @@ from datetime import date
 from functools import partial
 from pathlib import Path
 
+from tests.support.fixtures import working
 from tests.support.replay import text
 from utility_agents import (
     chief_of_staff,
@@ -173,15 +174,11 @@ def quoted(text: str) -> str:
 
 
 def work(playbook: str):
-    return department.run(handoff(), context(playbook))
+    return department.run(handoff(), working(playbook, "G-1"))
 
 
 def handoff() -> Handoff:
     return Handoff(message=MESSAGE, intent="field report", tried="nothing yet", customer_id=None)
-
-
-def context(playbook: str) -> Context:
-    return Context(today=TODAY, models=settings["models"], request_id="G-1", playbook=playbook)
 
 
 def route():

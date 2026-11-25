@@ -27,11 +27,13 @@ def build(request_id: str, raised: list[flags.Flag], proposal: Proposal | None) 
     Money tells billing only for a field report, where it means money promised on site; a
     customer's money question is already billing's."""
     reasons = [
-        (team, flags.notice(flag.flag, request_id))
-        for flag in raised
-        if (team := _team(flag.flag, proposal)) is not None
+        *(
+            (team, flags.notice(flag.flag, request_id))
+            for flag in raised
+            if (team := _team(flag.flag, proposal)) is not None
+        ),
+        *_billing(request_id, proposal),
     ]
-    reasons += _billing(request_id, proposal)
     texts: dict[str, list[str]] = {}
 
     for team, text in reasons:

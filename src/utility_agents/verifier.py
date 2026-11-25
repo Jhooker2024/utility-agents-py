@@ -24,24 +24,25 @@ from datetime import date
 
 from utility_agents import json_lines, model, prompts, records, tool_text
 from utility_agents.proposal import Commitment, FieldReport, InvoiceDispute, Proposal
-from utility_agents.text import day, decimals, figure, grouped
+from utility_agents.text import MONTHS, day, decimals, figure, grouped
 from utility_agents.work import Context, Request, Worked
 
 Check = str | None
 
-MONTH_NAMES = (
-    (("january", "jan"), ("januari",)),
-    (("february", "feb"), ("februari",)),
-    (("march", "mar"), ("maart", "mrt")),
-    (("april", "apr"), ("april",)),
-    (("may",), ("mei",)),
-    (("june", "jun"), ("juni",)),
-    (("july", "jul"), ("juli",)),
-    (("august", "aug"), ("augustus",)),
-    (("september", "sep", "sept"), ("september",)),
-    (("october", "oct"), ("oktober", "okt")),
-    (("november", "nov"), ("november",)),
-    (("december", "dec"), ("december",)),
+# What a month is called besides its English name: English abbreviations, then Dutch names.
+OTHER_MONTH_NAMES = (
+    (("jan",), ("januari",)),
+    (("feb",), ("februari",)),
+    (("mar",), ("maart", "mrt")),
+    (("apr",), ("april",)),
+    ((), ("mei",)),
+    (("jun",), ("juni",)),
+    (("jul",), ("juli",)),
+    (("aug",), ("augustus",)),
+    (("sep", "sept"), ("september",)),
+    (("oct",), ("oktober", "okt")),
+    (("nov",), ("november",)),
+    (("dec",), ("december",)),
 )
 ORDINAL_SUFFIXES = ("", "st", "nd", "rd", "th", "e")
 PERIOD_FIELD = "period"
@@ -320,12 +321,11 @@ def _renderings(field: str, value: object) -> list[str]:
 # "09-2026". A month without its year is not enough: it fits every year.
 def _period_renderings(period: str) -> list[str]:
     year, month = period.split("-")
-    english, dutch = MONTH_NAMES[int(month) - 1]
     numeric = [
         period,
         *(number + separator + year for number in (month, str(int(month))) for separator in "-/"),
     ]
-    with_year = [f"{name} {year}" for name in (*english, *dutch)]
+    with_year = [f"{name} {year}" for name in _month_names(int(month))]
 
     return _unique([*numeric, *with_year])
 
@@ -346,7 +346,6 @@ def _names_date(quote: str, written: date) -> bool:
 def _date_renderings(written: date) -> list[str]:
     days = _unique([str(written.day), f"{written.day:02}"])
     months = _unique([str(written.month), f"{written.month:02}"])
-    english, dutch = MONTH_NAMES[written.month - 1]
     numeric = [
         day_text + separator + month_text
         for day_text in days
@@ -355,13 +354,19 @@ def _date_renderings(written: date) -> list[str]:
     ]
     named = [
         rendering
-        for name in (*english, *dutch)
+        for name in _month_names(written.month)
         for suffix in ORDINAL_SUFFIXES
         for joiner in (" ", " of ")
         for rendering in (f"{written.day}{suffix}{joiner}{name}", f"{name} {written.day}{suffix}")
     ]
 
     return [written.isoformat(), *numeric, *named]
+
+
+def _month_names(month: int) -> tuple[str, ...]:
+    abbreviations, dutch = OTHER_MONTH_NAMES[month - 1]
+
+    return (MONTHS[month - 1].lower(), *abbreviations, *dutch)
 
 
 def _appears(phrase: str | None, text: str) -> bool:

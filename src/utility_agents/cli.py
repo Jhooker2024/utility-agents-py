@@ -29,13 +29,13 @@ from utility_agents.config import settings
 USAGE = __doc__
 # Each eval run is one paid model call per case, so the runs per case are capped.
 MAX_RUNS = 10
-ENV_FILE = ".env"
+ENVIRONMENT_FILE = ".env"
 
 Outcome = tuple[str, str]
 
 
 def main() -> None:
-    load_env(Path(ENV_FILE))
+    load_environment(Path(ENVIRONMENT_FILE))
     arguments = sys.argv[1:]
 
     if arguments == []:
@@ -63,7 +63,7 @@ def run(arguments: list[str]) -> Outcome:
             return "error", USAGE
 
 
-def load_env(path: Path) -> None:
+def load_environment(path: Path) -> None:
     """Sets every `NAME=value` line of the file as an environment variable. A line that
     starts with `#` or has no value is skipped."""
     if not path.exists():

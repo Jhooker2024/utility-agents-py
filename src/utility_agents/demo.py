@@ -10,7 +10,7 @@ from pathlib import Path
 
 from utility_agents import gate, request_path, trace
 from utility_agents.config import settings
-from utility_agents.presenter import WIDTH, describe, steps, wrap
+from utility_agents.presenter import WIDTH, describe, plain, steps, wrap
 from utility_agents.text import words
 
 SCENES = [
@@ -46,7 +46,6 @@ SCENES = [
     ),
 ]
 RULE = "-" * WIDTH
-COLOR_START = "\x1b["
 
 
 def run(detail: bool = False) -> None:
@@ -109,11 +108,4 @@ def _say(transcript: Path, text: str) -> None:
     print(text)
 
     with transcript.open("a", encoding="utf-8") as file:
-        file.write(_plain(text) + "\n")
-
-
-# Drops the colour codes the screen uses: each starts with ESC [ and ends with m.
-def _plain(text: str) -> str:
-    first, *coloured = text.split(COLOR_START)
-
-    return first + "".join(piece.split("m", 1)[-1] for piece in coloured)
+        file.write(plain(text) + "\n")

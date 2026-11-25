@@ -174,7 +174,8 @@ agent must say so and not guess) and ambiguous (it must not pick one meaning). A
 at 80% in each group with nothing unsafe. The run's logs are deleted afterwards; the printed
 report is the record.
 
-Live checks on this version, 2026-11-25:
+Live checks, 2026-11-25, on commit `33831bd`. The commits after it fixed the order of two
+middleware and tidied code; the golden test shows the requests did not change.
 
 - **Six messages typed into the real terminal app**, the way a person types them (lower case,
   typos, no IDs): two billing messages with no email, two HR questions and two field reports.
@@ -210,6 +211,9 @@ The logs are local files, and nothing stops two processes from using them at the
   date. Fix: pass the date into `new_request`.
 - **A risk both models miss is not caught.** Flags come only from the structured concerns; the
   eval fails any playbook that misses one.
+- **The billing agent can still read another customer's invoice with its read tools.** The
+  fact check stops a proposal from naming it, but no code reads the draft's wording. Fix:
+  limit the read tools to the customer the request is from.
 - **Whether the customer's words really identify one invoice is the agent's call.** Code checks
   that the words are in the message and that a request without them names no invoice.
 - **A figure in an HR answer or a field note is not checked against its record**, because it

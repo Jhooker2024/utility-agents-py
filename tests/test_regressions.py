@@ -6,10 +6,9 @@ from datetime import date
 
 import pytest
 
-from tests.support.fixtures import field_report, invoice_dispute
+from tests.support.fixtures import field_report, invoice_dispute, working
 from tests.support.replay import end_turn, tool_use, verdict
-from utility_agents import department, presenter, prompts, verifier
-from utility_agents.config import PACKAGE, settings
+from utility_agents import department, judge, presenter, prompts, verifier
 from utility_agents.proposal import (
     Commitment,
     FieldReport,
@@ -21,7 +20,7 @@ from utility_agents.proposal import (
 )
 from utility_agents.records import labels
 from utility_agents.request_path import handle, request
-from utility_agents.work import Context, Handoff
+from utility_agents.work import Handoff
 
 TODAY = date(2026, 11, 25)
 NO_WORDS = (
@@ -216,21 +215,70 @@ def test_a_report_that_says_its_date_is_not_known_has_no_visit_date_and_goes_to_
     )
 
 
-def test_the_billing_playbook_and_the_eval_judge_define_a_promise_in_the_same_words_r430_r440():
-    playbook = (PACKAGE / "playbooks" / "invoice_dispute.md").read_text()
+def test_the_billing_agent_and_the_eval_judge_are_sent_one_definition_of_a_promise_r430_r440(
+    replay,
+):
+    replay.always(400, {"error": "refused"})
+    asked = Handoff("Will you pay compensation?", "invoice dispute", "nothing yet", "C-1005")
 
-    assert " ".join(prompts.PROMISE.split()) in " ".join(playbook.split())
-    assert prompts.PROMISE in prompts.EVAL_JUDGE
-    assert "a colleague will check it" in " ".join(playbook.split())
+    department.run(asked, working("invoice_dispute", "R-440"))
+    judge.verdict({"kind": "needs_attention", "fields": {}}, {"outcome": "held"}, "m", "m")
+
+    billing, grader = (" ".join(sent["system"][0]["text"].split()) for sent in replay.requests)
+    promise = " ".join(prompts.PROMISE.split())
+
+    assert promise.startswith("A promise tells the reader that something will happen")
+    assert "is a promise when no record shows that" in promise
+    assert promise in billing
+    assert promise in grader
+    assert "for anything the records cannot settle, say a colleague will check it" in billing
 
 
-def test_a_figure_from_another_departments_answer_is_a_fact_in_a_field_report_f161():
-    playbook = " ".join((PACKAGE / "playbooks" / "field_report.md").read_text().split())
-
-    assert "that another department gave in answer to ask_department is a fact" in " ".join(
-        prompts.DEPARTMENT_RULES.split()
+def test_a_figure_from_billings_answer_stays_in_a_field_note_and_is_no_commitment_f161(
+    replay, tmp_path
+):
+    note = "Meter fine. Billing says the October invoice of €91.84 is open, due 30 Nov 2026."
+    filed = field_report(
+        draft=note,
+        fields={
+            "customer_id": "C-1009",
+            "asset_id": "A-2009",
+            "visit_date": "2026-11-24",
+            "visit_date_quote": "24 Nov",
+            "fault_type": "no_fault",
+            "follow_up": "none",
+            "readings": [{"value": 31560, "unit": "kwh", "quote": "reading 31,560 kWh"}],
+        },
     )
-    assert "An amount or date in billing's answer is a fact from billing's records" in playbook
+    listed = {**filed, "commitments": [{"type": "money", "words": "€91.84", "source": "INV-3005"}]}
+    question = {"department": "billing", "question": "Is the October invoice of C-1009 paid?"}
+    replay.roles(
+        field_operations=[
+            tool_use("ask_department", question),
+            tool_use("file_proposal", listed),
+            tool_use("file_proposal", filed),
+        ],
+        billing=[end_turn("INV-3005 for October 2026 is open: €91.84, due 30 Nov 2026.")],
+        judge=[verdict(True)],
+    )
+
+    decision = handle(request("F-161"), today=date(2026, 11, 24), log_directory=tmp_path)
+
+    first, _consult, _second, third, _judge = replay.requests
+    rules = " ".join(first["system"][0]["text"].split())
+    [told] = third["messages"][-1]["content"]
+
+    assert "that another department gave in answer to ask_department is a fact" in rules
+    assert "An amount or date in billing's answer is a fact from billing's records" in rules
+    assert told["is_error"] is True
+    assert (
+        "The note lists a commitment (€91.84), and a field report promises nothing."
+        in (told["content"])
+    )
+    assert decision["proposal"]["draft"] == note
+    assert decision["proposal"]["commitments"] == []
+    assert decision["checks"]["grounded"] == "pass"
+    assert decision["outcome"] == "automatic"
 
 
 @pytest.mark.parametrize(
@@ -257,7 +305,7 @@ def test_a_proposal_filed_on_the_last_allowed_model_request_is_kept(replay):
     report = field_report(draft="Loose neutral at meter A-2002 tightened.", fields={"readings": []})
     replay.sequence([READ] * (department.MAX_TURNS - 1) + [tool_use("file_proposal", report)])
 
-    worked = department.run(REPORTED, working("field_report"))
+    worked = department.run(REPORTED, working("field_report", "F-1"))
 
     assert department.MAX_TURNS == 8
     assert len(replay.requests) == 8
@@ -269,7 +317,7 @@ def test_a_nudged_reply_counts_as_one_of_the_eight_model_requests(replay):
     replies = iter([end_turn("Done.")])
     replay.respond(lambda _body: (200, next(replies, READ)))
 
-    worked = department.run(REPORTED, working("field_report"))
+    worked = department.run(REPORTED, working("field_report", "F-1"))
 
     assert worked.held_reason == "No proposal after 8 model requests."
     assert len(replay.requests) == 8
@@ -282,9 +330,3 @@ REPORTED = Handoff(
     tried="nothing yet",
     customer_id=None,
 )
-
-
-def working(playbook: str) -> Context:
-    return Context(
-        today=date(2026, 11, 24), models=settings["models"], request_id="F-1", playbook=playbook
-    )

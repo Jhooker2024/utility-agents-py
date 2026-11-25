@@ -2,6 +2,18 @@
 overrides; overrides under "fields" replace only the fields they name.
 """
 
+from datetime import date
+
+from utility_agents.config import settings
+from utility_agents.work import Context
+
+TODAY = date(2026, 11, 24)
+
+
+def working(playbook: str, request_id: str = "F-002") -> Context:
+    """What a department works one request under, on 24 November 2026."""
+    return Context(today=TODAY, models=settings["models"], request_id=request_id, playbook=playbook)
+
 
 def field_report(**overrides: object) -> dict:
     """A field report for customer C-1002 and meter A-2002."""

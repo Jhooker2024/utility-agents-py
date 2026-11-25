@@ -64,15 +64,14 @@ GRAPH_STEPS = MAX_TURNS * 10
 NUDGE = "You have not filed a proposal. Call file_proposal now."
 ASK_DEPARTMENT = "ask_department"
 RULES = prompts.DEPARTMENT_RULES + "\n\n" + prompts.CONCERN_RULES
-
-
-def _playbook_text(playbook: str) -> str:
-    text = (PACKAGE / "playbooks" / f"{playbook}.md").read_text()
-
-    return text.split("\n## Changes")[0].strip()
-
-
-PLAYBOOKS = {playbook: _playbook_text(playbook) for playbook in proposal.PLAYBOOKS}
+# Each playbook's text up to its `## Changes` section.
+PLAYBOOKS = {
+    playbook: (PACKAGE / "playbooks" / f"{playbook}.md")
+    .read_text()
+    .split("\n## Changes")[0]
+    .strip()
+    for playbook in proposal.PLAYBOOKS
+}
 
 
 @dataclasses.dataclass

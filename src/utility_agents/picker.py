@@ -8,15 +8,13 @@ import sys
 import termios
 import tty
 
-from utility_agents.presenter import paint, terminal
+from utility_agents.presenter import ESCAPE, RESET, REVERSE, paint, terminal
 from utility_agents.records import DIGITS
 
-UP = "\x1b[A"
-DOWN = "\x1b[B"
+UP = ESCAPE + "A"
+DOWN = ESCAPE + "B"
 ENTER = ("\r", "\n")
 INTERRUPT = "\x03"
-REVERSE = "\x1b[7m"
-RESET = "\x1b[0m"
 LABEL_WIDTH = 70
 
 Options = list[tuple[object, str]]
@@ -111,7 +109,7 @@ def _draw(options: Options, selected: int) -> None:
 
 
 def _redraw(options: Options, selected: int) -> None:
-    sys.stdout.write(f"\x1b[{len(options)}A\x1b[J")
+    sys.stdout.write(f"{ESCAPE}{len(options)}A{ESCAPE}J")
     _draw(options, selected)
 
 

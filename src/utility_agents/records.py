@@ -49,6 +49,16 @@ ID_FIELDS = {
 }
 
 
+_BY_ID = {
+    collection: {
+        record["id"]: record
+        for record in json.loads((PACKAGE / "seed" / f"{collection}.json").read_text())
+    }
+    for collection in COLLECTIONS
+}
+_LABELS = json.loads((PACKAGE / "seed" / "labels.json").read_text())
+
+
 class OutOfScope(Exception):
     """A department asked for a collection it may not read."""
 
@@ -56,16 +66,6 @@ class OutOfScope(Exception):
 class Match(NamedTuple):
     customer: dict
     assets: list[dict]
-
-
-def _load(name: str) -> list[dict]:
-    return json.loads((PACKAGE / "seed" / f"{name}.json").read_text())
-
-
-_BY_ID = {
-    collection: {record["id"]: record for record in _load(collection)} for collection in COLLECTIONS
-}
-_LABELS = _load("labels")
 
 
 def collections(department: str) -> tuple[str, ...]:

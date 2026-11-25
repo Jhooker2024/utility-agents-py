@@ -9,6 +9,7 @@ import json
 import threading
 from collections.abc import Callable
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import urlunsplit
 
 DEPARTMENTS = {"billing": "billing", "field operations": "field_operations", "hr": "hr"}
 _ids = itertools.count(1)
@@ -27,7 +28,9 @@ class Replay:
 
     @property
     def url(self) -> str:
-        return f"http://127.0.0.1:{self._server.server_port}"
+        host, port = self._server.server_address
+
+        return urlunsplit(("http", f"{host}:{port}", "", "", ""))
 
     def close(self) -> None:
         self._server.shutdown()

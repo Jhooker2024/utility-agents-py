@@ -1,10 +1,9 @@
 from datetime import date
 
-from tests.support.fixtures import field_report
+from tests.support.fixtures import field_report, working
 from tests.support.replay import end_turn, tool_use
 from utility_agents import department
-from utility_agents.config import settings
-from utility_agents.work import Context, Handoff
+from utility_agents.work import Handoff
 
 REPORT = field_report(
     draft="Loose neutral at meter A-2002 tightened on 19 November 2026.",
@@ -26,7 +25,7 @@ def test_a_tool_call_runs_its_result_goes_back_and_a_valid_proposal_ends_the_run
         ]
     )
 
-    worked = department.run(HANDOFF, context())
+    worked = department.run(HANDOFF, working("field_report"))
     read, filed = worked.steps
     assert worked.proposal.fields.visit_date == date(2026, 11, 19)
     assert (read["step"], read["result"]) == ("get_record", "ok")
@@ -53,7 +52,7 @@ def test_a_tool_call_runs_its_result_goes_back_and_a_valid_proposal_ends_the_run
 def test_a_reply_without_a_proposal_gets_one_nudge_then_the_request_is_held(replay):
     replay.sequence([end_turn("Done."), end_turn("Still done.")])
 
-    worked = department.run(HANDOFF, context())
+    worked = department.run(HANDOFF, working("field_report"))
 
     assert worked.proposal is None
     assert worked.held_reason == "The agent ended twice without filing a proposal."
@@ -73,7 +72,7 @@ def test_a_proposal_the_fact_check_fails_goes_back_to_the_agent_and_the_fixed_on
     wrong = {**REPORT, "fields": {**REPORT["fields"], "customer_id": "C-1003x"}}
     replay.sequence([tool_use("file_proposal", wrong), tool_use("file_proposal", REPORT)])
 
-    worked = department.run(HANDOFF, context())
+    worked = department.run(HANDOFF, working("field_report"))
 
     assert worked.proposal.fields.customer_id == "C-1002"
     assert len(worked.steps) == 2
@@ -89,7 +88,7 @@ def test_an_invalid_proposal_goes_back_once_as_a_tool_error_then_the_request_is_
     invalid = {**REPORT, "kind": "send"}
     replay.sequence([tool_use("file_proposal", invalid), tool_use("file_proposal", invalid)])
 
-    worked = department.run(HANDOFF, context())
+    worked = department.run(HANDOFF, working("field_report"))
 
     assert worked.proposal is None
     assert worked.held_reason.startswith("The proposal is invalid: ")
@@ -111,7 +110,7 @@ def test_a_consult_runs_the_other_department_with_its_read_tools_only_and_is_a_s
         ]
     )
 
-    worked = department.run(HANDOFF, context())
+    worked = department.run(HANDOFF, working("field_report"))
     assert worked.proposal is not None
     consult, second_consult, _filed = worked.steps
 
@@ -141,7 +140,7 @@ def test_a_department_reads_only_its_own_records_billing_gets_no_hr_collection(r
         ]
     )
 
-    department.run(HANDOFF, context("invoice_dispute"))
+    department.run(HANDOFF, working("invoice_dispute"))
 
     first, second, _nudged = replay.requests
     get_record = next(tool for tool in first["tools"] if tool["name"] == "get_record")
@@ -157,7 +156,7 @@ def test_a_department_reads_only_its_own_records_billing_gets_no_hr_collection(r
 def test_a_model_that_keeps_calling_tools_is_held_after_the_turn_limit(replay):
     replay.always(200, tool_use("get_record", {"collection": "assets", "id": "A-2002"}))
 
-    worked = department.run(HANDOFF, context())
+    worked = department.run(HANDOFF, working("field_report"))
 
     assert worked.proposal is None
     assert worked.held_reason == "No proposal after 8 model requests."
@@ -170,7 +169,7 @@ def test_a_message_that_rebuilds_a_closing_tag_cannot_leave_the_evidence_block(r
 
     department.run(
         Handoff(message=message, intent=HANDOFF.intent, tried=HANDOFF.tried, customer_id=None),
-        context(),
+        working("field_report"),
     )
 
     [sent] = replay.requests[0]["messages"]
@@ -188,18 +187,9 @@ def test_only_departments_that_can_read_customers_get_the_customer_search(replay
 
     def names(playbook: str) -> list[str]:
         before = len(replay.requests)
-        department.run(HANDOFF, context(playbook))
+        department.run(HANDOFF, working(playbook))
 
         return [tool["name"] for tool in replay.requests[before]["tools"]]
 
     assert "find_customer" in names("field_report")
     assert "find_customer" not in names("policy_question")
-
-
-def context(playbook: str = "field_report") -> Context:
-    return Context(
-        today=date(2026, 11, 24),
-        models=settings["models"],
-        request_id="F-002",
-        playbook=playbook,
-    )

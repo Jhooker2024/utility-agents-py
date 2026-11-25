@@ -43,6 +43,23 @@ repository. Update this file at every milestone.
   `decisions.jsonl` once per request, one shared ownership check, and scoping reads by
   customer at the tool layer (a behaviour change: see Open).
 
+## Review (2026-11-25)
+
+- Correctness review of the `create_agent` build found two bugs from the middleware order: a
+  proposal filed on the eighth model request was thrown away, and a nudged reply was not
+  counted, so nine paid requests were possible. Fixed in `dc80c51` with two regression tests.
+- Rule review (`~/.claude/code-patterns.md`): fixed constants defined between functions,
+  duplicated month and collection names, colour codes in three places, an `env` abbreviation,
+  test URLs, a copied test helper, and two regression tests that asserted on constants.
+- Left as they are, for Justin to decide: Python's one-line conditional (rule 17, 40 uses) and
+  the tool table at the bottom of `tools.py` (rule 3; Python needs the functions first).
+- Disputed with a reason: `model.text` (LangChain joins text blocks without a line break),
+  `text.MONTHS` (the standard names follow the locale), `usage.py` (LangChain's usage callback
+  keys by the model name the API returns; prices are keyed by the configured ID), `schema.py`
+  (Pydantic's own output uses `$defs` and `anyOf`), and the two judges' error handling (their
+  failure texts differ on purpose).
+- Codex is not installed, so there was no second opinion.
+
 ## Next
 
 - Justin decided on 2026-11-25: leave R-429 failing, and no full eval for now. The full eval

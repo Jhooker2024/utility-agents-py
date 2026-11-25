@@ -29,12 +29,8 @@ HEADINGS = {
     "invoice_dispute": "Reply to the customer",
     "policy_question": "Answer to the employee",
 }
-COLLECTIONS = {
-    "customers": "customer",
-    "assets": "meter or cable",
-    "invoices": "invoice",
-    "usage": "usage record",
-    "policies": "policy",
+COLLECTIONS = {entry.collection: entry.name for entry in records.ID_FIELDS.values()} | {
+    "usage": "usage record"
 }
 TOP_STEPS = ("chief_of_staff", "verifier", "gate")
 LABELS = {
@@ -65,6 +61,9 @@ FIELD_ORDER = (
 )
 UNITS = {"kwh": "kWh", "volt": "V"}
 COLORS = {"green": "32", "blue": "34", "red": "31", "yellow": "33", "bright": "1"}
+ESCAPE = "\x1b["
+RESET = ESCAPE + "0m"
+REVERSE = ESCAPE + "7m"
 
 
 def describe(decision: dict, entries: list[dict]) -> str:
@@ -114,7 +113,14 @@ def paint(text: str, color: str) -> str:
     if text == "" or not terminal() or os.environ.get("NO_COLOR"):
         return text
 
-    return f"\x1b[{COLORS[color]}m{text}\x1b[0m"
+    return f"{ESCAPE}{COLORS[color]}m{text}{RESET}"
+
+
+def plain(text: str) -> str:
+    """Text without the colour codes `paint` adds: each starts with ESC [ and ends with m."""
+    first, *coloured = text.split(ESCAPE)
+
+    return first + "".join(piece.split("m", 1)[-1] for piece in coloured)
 
 
 def terminal() -> bool:
@@ -125,7 +131,7 @@ def terminal() -> bool:
 def clear() -> None:
     """Starts a fresh screen with the cursor at the top; does nothing outside a terminal."""
     if terminal():
-        sys.stdout.write("\x1b[2J\x1b[H")
+        sys.stdout.write(f"{ESCAPE}2J{ESCAPE}H")
 
 
 def steps(entries: list[dict]) -> str:
