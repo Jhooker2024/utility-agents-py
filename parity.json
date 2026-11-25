@@ -105,8 +105,8 @@
       "check": "scratchpad drive.py offline field_offline.json: asked for both, ran again, done without a person"
     },
     "six typed messages against the live API": {
-      "passes": false,
-      "check": "needs Justin's approval"
+      "passes": true,
+      "check": "2026-11-25, `uv run utility-agents` driven in a pseudo-terminal, 7 requests, $0.0974; every screen read: each answer is one staff would accept, and the street-only field report asked for the customer and the meter"
     },
     "full live eval": {
       "passes": false,
@@ -143,8 +143,8 @@
       "check": "pytest tests/test_regressions.py (offline); live eval still to run"
     },
     "7": {
-      "passes": false,
-      "check": "offline flows pass; the six typed messages against the live API need Justin's yes"
+      "passes": true,
+      "check": "every menu flow driven with real key presses offline, and the six typed messages live"
     }
   }
 }

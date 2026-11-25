@@ -412,6 +412,6 @@ def _judge_prompt(proposal: Proposal, message: str, today: date) -> str:
         f"{prompts.evidence(message)}\n"
         "\n"
         "<proposal>\n"
-        f"{proposal_json(proposal.to_json())}\n"
+        f"{proposal_json(proposal.model_dump(mode='json'))}\n"
         "</proposal>\n"
     )

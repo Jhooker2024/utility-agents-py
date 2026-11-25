@@ -137,7 +137,7 @@ def _decide(request: Request, context: Context) -> dict:
             "request_id": request.id,
             "date": context.today,
             "playbook": playbook,
-            "proposal": filed and filed.to_json(),
+            "proposal": filed and filed.model_dump(mode="json"),
             "held_reason": worked.held_reason,
             "checks": {check: _check_text(result) for check, result in checks.items()},
             "stage": conditions.stage,

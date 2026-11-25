@@ -244,7 +244,7 @@ def decision() -> dict:
         "notifications": [{"to": "Billing", "text": "A golden notification."}],
         "usage": {"cost_usd": 0.0123},
         "proposal": {
-            **reply.to_json(),
+            **reply.model_dump(mode="json"),
             "fields": {"invoice_id": "INV-3005", "outcome": "escalate"},
         },
     }

@@ -7,7 +7,7 @@ for a technical reader.
 import json
 import os
 import sys
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from datetime import date
 
 from utility_agents import proposal, records, usage
@@ -306,7 +306,12 @@ def _invoice_text(invoice: dict) -> str:
     )
 
 
-def _record_text(collection, record_id, text, department="field_operations") -> str:
+def _record_text(
+    collection: str,
+    record_id: object,
+    text: Callable[[dict], str],
+    department: str = "field_operations",
+) -> str:
     found = records.lookup(department, collection, record_id)
 
     if found is None:

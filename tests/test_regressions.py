@@ -210,7 +210,7 @@ def test_a_report_that_says_its_date_is_not_known_has_no_visit_date_and_goes_to_
             "outcome": "held",
             "playbook": "field_report",
             "gate_reason": "the agent flagged it for a person",
-            "proposal": for_a_person.to_json(),
+            "proposal": for_a_person.model_dump(mode="json"),
         }
     )
 

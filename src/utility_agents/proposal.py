@@ -101,10 +101,6 @@ class Proposal(Shared):
     playbook: str
     fields: FieldReport | InvoiceDispute | PolicyQuestion
 
-    def to_json(self) -> dict:
-        """The proposal as it is logged and shown to the judges."""
-        return self.model_dump(mode="json")
-
 
 class Playbook(NamedTuple):
     """A playbook's department, its fields and the kinds a proposal for it may have."""
